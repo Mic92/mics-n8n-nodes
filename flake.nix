@@ -1,0 +1,102 @@
+{
+  description = "n8n OpenCrow trigger pipe node";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  outputs =
+    inputs@{
+      flake-parts,
+      treefmt-nix,
+      ...
+    }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      imports = [
+        treefmt-nix.flakeModule
+      ];
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "aarch64-darwin"
+        "x86_64-darwin"
+      ];
+
+      perSystem =
+        {
+          pkgs,
+          config,
+          ...
+        }:
+        {
+          packages.default = pkgs.buildNpmPackage {
+            pname = "n8n-nodes-opencrow";
+            version = "1.0.0";
+
+            src = ./.;
+
+            npmDepsHash = builtins.readFile ./npmDepsHash.txt;
+
+            makeCacheWritable = true;
+            npmFlags = [
+              "--ignore-scripts"
+              "--legacy-peer-deps"
+            ];
+
+            buildPhase = ''
+              runHook preBuild
+              npm run build
+              runHook postBuild
+            '';
+
+            installPhase = ''
+              runHook preInstall
+              mkdir -p $out/lib/node_modules/n8n-nodes-opencrow
+              cp -r dist package.json node_modules $out/lib/node_modules/n8n-nodes-opencrow/
+              runHook postInstall
+            '';
+
+            meta = {
+              description = "n8n node to send messages to OpenCrow via trigger pipe";
+              license = pkgs.lib.licenses.mit;
+            };
+          };
+
+          devShells.default = pkgs.mkShell {
+            buildInputs = with pkgs; [
+              nodejs
+            ];
+
+            shellHook = ''
+              echo "n8n OpenCrow Node Development Environment"
+            '';
+          };
+
+          treefmt = {
+            projectRootFile = "flake.nix";
+            programs = {
+              nixfmt.enable = true;
+              prettier.enable = true;
+            };
+            settings.formatter = {
+              prettier = {
+                excludes = [
+                  "package-lock.json"
+                  "flake.lock"
+                ];
+              };
+            };
+          };
+
+          checks = {
+            package = config.packages.default;
+            devShell = config.devShells.default;
+          };
+        };
+    };
+}
