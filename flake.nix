@@ -1,5 +1,5 @@
 {
-  description = "n8n OpenCrow trigger pipe node";
+  description = "Mic's custom n8n community nodes";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -35,12 +35,15 @@
         }:
         {
           packages.default = pkgs.buildNpmPackage {
-            pname = "n8n-nodes-opencrow";
+            pname = "mics-n8n-nodes";
             version = "1.0.0";
 
             src = ./.;
 
-            npmDepsHash = builtins.readFile ./npmDepsHash.txt;
+            npmDeps = pkgs.importNpmLock {
+              npmRoot = ./.;
+            };
+            npmConfigHook = pkgs.importNpmLock.npmConfigHook;
 
             makeCacheWritable = true;
             npmFlags = [
@@ -56,13 +59,13 @@
 
             installPhase = ''
               runHook preInstall
-              mkdir -p $out/lib/node_modules/n8n-nodes-opencrow
-              cp -r dist package.json node_modules $out/lib/node_modules/n8n-nodes-opencrow/
+              mkdir -p $out/lib/node_modules/mics-n8n-nodes
+              cp -r dist package.json node_modules $out/lib/node_modules/mics-n8n-nodes/
               runHook postInstall
             '';
 
             meta = {
-              description = "n8n node to send messages to OpenCrow via trigger pipe";
+              description = "Mic's custom n8n community nodes";
               license = pkgs.lib.licenses.mit;
             };
           };
@@ -73,7 +76,7 @@
             ];
 
             shellHook = ''
-              echo "n8n OpenCrow Node Development Environment"
+              echo "Mic's n8n Nodes Development Environment"
             '';
           };
 

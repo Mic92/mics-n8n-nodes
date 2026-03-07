@@ -1,13 +1,10 @@
 {
-  "name": "n8n-nodes-opencrow",
+  "name": "mics-n8n-nodes",
   "version": "1.0.0",
-  "description": "n8n node to send messages to OpenCrow via its trigger pipe",
+  "description": "Mic's custom n8n community nodes",
   "keywords": [
     "n8n-community-node-package",
-    "n8n",
-    "opencrow",
-    "ai",
-    "trigger"
+    "n8n"
   ],
   "license": "MIT",
   "author": {
@@ -16,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Mic92/n8n-nodes-opencrow.git"
+    "url": "git+https://github.com/Mic92/mics-n8n-nodes.git"
   },
   "main": "index.js",
   "scripts": {
