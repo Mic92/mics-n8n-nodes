@@ -66,8 +66,9 @@ function parseRelays(raw: string): string[] {
 
 /** Exported so tests can override with small values. */
 export const retryConfig = {
-  maxRetries: 5,
+  maxRetries: 20,
   baseDelayMs: 1000,
+  maxDelayMs: 30000,
 };
 
 function sleep(ms: number): Promise<void> {
@@ -99,7 +100,11 @@ async function sendGiftWrappedDM(
 
   for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
     if (attempt > 0) {
-      await sleep(retryConfig.baseDelayMs * Math.pow(2, attempt - 1));
+      const delay = Math.min(
+        retryConfig.baseDelayMs * Math.pow(2, attempt - 1),
+        retryConfig.maxDelayMs,
+      );
+      await sleep(delay);
     }
 
     const pool = new SimplePool();
