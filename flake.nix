@@ -92,8 +92,6 @@
               pname = "n8n-nodes-opencrow";
               description = "n8n node to send trigger messages to OpenCrow";
             };
-
-            default = config.packages.n8n-nodes-nostr;
           };
 
           devShells.default = pkgs.mkShell {
