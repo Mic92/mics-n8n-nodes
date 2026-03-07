@@ -33,41 +33,67 @@
           config,
           ...
         }:
+        let
+          mkN8nNode =
+            {
+              pname,
+              description,
+            }:
+            pkgs.buildNpmPackage {
+              inherit pname;
+              version = "1.0.0";
+
+              src = ./.;
+
+              npmDeps = pkgs.importNpmLock {
+                npmRoot = ./.;
+              };
+              npmConfigHook = pkgs.importNpmLock.npmConfigHook;
+
+              makeCacheWritable = true;
+              npmFlags = [
+                "--ignore-scripts"
+                "--legacy-peer-deps"
+              ];
+
+              buildPhase = ''
+                runHook preBuild
+                npm run build --workspace=packages/${pname}
+                runHook postBuild
+              '';
+
+              installPhase = ''
+                runHook preInstall
+                mkdir -p $out/lib/node_modules/${pname}
+                cp -r packages/${pname}/dist packages/${pname}/package.json node_modules $out/lib/node_modules/${pname}/
+
+                # npm workspaces create symlinks to sibling packages; remove
+                # them so the output doesn't contain dangling references.
+                find $out/lib/node_modules/${pname}/node_modules \
+                  -maxdepth 1 -type l -xtype l -delete
+
+                runHook postInstall
+              '';
+
+              meta = {
+                inherit description;
+                license = pkgs.lib.licenses.mit;
+              };
+            };
+        in
         {
-          packages.default = pkgs.buildNpmPackage {
-            pname = "mics-n8n-nodes";
-            version = "1.0.0";
-
-            src = ./.;
-
-            npmDeps = pkgs.importNpmLock {
-              npmRoot = ./.;
+          packages = {
+            n8n-nodes-nostr = mkN8nNode {
+              pname = "n8n-nodes-nostr";
+              description = "n8n node to send encrypted DMs via Nostr using NIP-59 Gift Wrap";
             };
-            npmConfigHook = pkgs.importNpmLock.npmConfigHook;
 
-            makeCacheWritable = true;
-            npmFlags = [
-              "--ignore-scripts"
-              "--legacy-peer-deps"
-            ];
-
-            buildPhase = ''
-              runHook preBuild
-              npm run build
-              runHook postBuild
-            '';
-
-            installPhase = ''
-              runHook preInstall
-              mkdir -p $out/lib/node_modules/mics-n8n-nodes
-              cp -r dist package.json node_modules $out/lib/node_modules/mics-n8n-nodes/
-              runHook postInstall
-            '';
-
-            meta = {
-              description = "Mic's custom n8n community nodes";
-              license = pkgs.lib.licenses.mit;
+            n8n-nodes-opencrow = mkN8nNode {
+              pname = "n8n-nodes-opencrow";
+              description = "n8n node to send trigger messages to OpenCrow";
             };
+
+            default = config.packages.n8n-nodes-nostr;
           };
 
           devShells.default = pkgs.mkShell {
@@ -97,7 +123,8 @@
           };
 
           checks = {
-            package = config.packages.default;
+            n8n-nodes-nostr = config.packages.n8n-nodes-nostr;
+            n8n-nodes-opencrow = config.packages.n8n-nodes-opencrow;
             devShell = config.devShells.default;
           };
         };

@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import { createMockExecuteFunctions } from "../../../test/helpers";
+import { createMockExecuteFunctions } from "../../../../../test/helpers";
 import { OpenCrow } from "../OpenCrow.node";
 
 describe("OpenCrow node", () => {

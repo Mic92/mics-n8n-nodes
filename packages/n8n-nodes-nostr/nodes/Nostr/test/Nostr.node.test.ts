@@ -7,7 +7,7 @@ import { npubEncode } from "nostr-tools/nip19";
 
 import type { NostrEvent } from "nostr-tools";
 
-import { createMockExecuteFunctions } from "../../../test/helpers";
+import { createMockExecuteFunctions } from "../../../../../test/helpers";
 import { Nostr, retryConfig } from "../Nostr.node";
 
 // Route SimplePool through mock-socket so we never hit the network

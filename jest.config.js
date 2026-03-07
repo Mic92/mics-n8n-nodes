@@ -3,7 +3,7 @@ module.exports = {
   testEnvironment: "node",
   testMatch: ["**/*.test.ts"],
   testPathIgnorePatterns: ["/node_modules/", "/dist/"],
-  collectCoverageFrom: ["nodes/**/*.ts"],
+  collectCoverageFrom: ["packages/**/nodes/**/*.ts"],
   coveragePathIgnorePatterns: ["/node_modules/", "/dist/", "/test/"],
   transform: {
     "^.+\\.tsx?$": [

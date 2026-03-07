@@ -1,11 +1,8 @@
 {
   "name": "mics-n8n-nodes",
   "version": "1.0.0",
+  "private": true,
   "description": "Mic's custom n8n community nodes",
-  "keywords": [
-    "n8n-community-node-package",
-    "n8n"
-  ],
   "license": "MIT",
   "author": {
     "name": "Jörg Thalheim",
@@ -15,29 +12,15 @@
     "type": "git",
     "url": "git+https://github.com/Mic92/mics-n8n-nodes.git"
   },
-  "main": "index.js",
-  "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "format": "prettier nodes credentials test --write",
-    "lint": "eslint 'nodes/**/*.ts' 'test/**/*.ts'",
-    "lintfix": "eslint 'nodes/**/*.ts' 'test/**/*.ts' --fix",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "prepublishOnly": "npm run build"
-  },
-  "files": [
-    "dist"
+  "workspaces": [
+    "packages/*"
   ],
-  "n8n": {
-    "n8nNodesApiVersion": 1,
-    "credentials": [
-      "dist/credentials/NostrApi.credentials.js"
-    ],
-    "nodes": [
-      "dist/nodes/OpenCrow/OpenCrow.node.js",
-      "dist/nodes/Nostr/Nostr.node.js"
-    ]
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "jest",
+    "format": "prettier packages test --write",
+    "lint": "eslint 'packages/**/*.ts' 'test/**/*.ts'",
+    "lintfix": "eslint 'packages/**/*.ts' 'test/**/*.ts' --fix"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
@@ -51,11 +34,5 @@
     "prettier": "^3.8.1",
     "ts-jest": "^29.4.6",
     "typescript": "^5.6.0"
-  },
-  "peerDependencies": {
-    "n8n-workflow": "*"
-  },
-  "dependencies": {
-    "nostr-tools": "^2.23.3"
   }
 }

@@ -47,22 +47,8 @@ is a separate trigger.
 
 ## Development
 
-```bash
-# enter dev shell
-nix develop
-
-# install dependencies
-npm install --legacy-peer-deps
-
-# run tests
-npm test
-
-# build
-npm run build
-
-# format
-nix fmt
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, testing, building, and how to
+add new nodes.
 
 ## License
 

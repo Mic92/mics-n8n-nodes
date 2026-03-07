@@ -1,0 +1,33 @@
+{
+  "name": "n8n-nodes-opencrow",
+  "version": "1.0.0",
+  "description": "n8n node to send trigger messages to OpenCrow via its named pipe",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "opencrow",
+    "trigger"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "Jörg Thalheim",
+    "email": "joerg@thalheim.io"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "nodes": [
+      "dist/nodes/OpenCrow/OpenCrow.node.js"
+    ]
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}
