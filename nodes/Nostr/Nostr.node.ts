@@ -64,8 +64,16 @@ function parseRelays(raw: string): string[] {
     .filter(Boolean);
 }
 
+const MAX_RETRIES = 5;
+const BASE_DELAY_MS = 1000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Wrap a message as a NIP-59 gift-wrapped kind-14 DM and publish it.
+ * Retries with exponential back-off until at least one relay accepts.
  */
 async function sendGiftWrappedDM(
   senderPrivateKey: Uint8Array,
@@ -84,14 +92,44 @@ async function sendGiftWrappedDM(
     recipientPubkey,
   );
 
-  const pool = new SimplePool();
-  try {
-    await Promise.any(pool.publish(relays, wrap));
-  } finally {
-    pool.close(relays);
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      await sleep(BASE_DELAY_MS * Math.pow(2, attempt - 1));
+    }
+
+    const pool = new SimplePool();
+    try {
+      // pool.publish() resolves with a relay URL on success, but also
+      // resolves with error strings like "connection failure: …" instead
+      // of rejecting.  Turn those into rejections so Promise.any() only
+      // settles on a genuine acceptance.
+      const publishPromises = pool.publish(relays, wrap).map((p) =>
+        p.then((result) => {
+          if (
+            typeof result === "string" &&
+            (result.startsWith("connection failure:") ||
+              result === "duplicate url" ||
+              result.startsWith("connection skipped"))
+          ) {
+            throw new Error(result);
+          }
+          return result;
+        }),
+      );
+      await Promise.any(publishPromises);
+      return wrap;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    } finally {
+      pool.close(relays);
+    }
   }
 
-  return wrap;
+  throw new Error(
+    `Failed to publish to any relay after ${MAX_RETRIES + 1} attempts: ${lastError?.message}`,
+  );
 }
 
 export class Nostr implements INodeType {

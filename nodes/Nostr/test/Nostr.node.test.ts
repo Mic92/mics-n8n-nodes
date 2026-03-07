@@ -124,4 +124,46 @@ describe("Nostr node", () => {
     const thirdPartyKey = generateSecretKey();
     expect(() => unwrapEvent(receivedEvents[0], thirdPartyKey)).toThrow();
   });
+
+  it("retries when relay is initially down, then comes up", async () => {
+    // Start with the relay closed
+    server.close();
+
+    const node = new Nostr();
+    const ctx = createMockExecuteFunctions(
+      {
+        message: "retry me",
+        recipientPubkey: RECIPIENT_PUBKEY,
+      },
+      {
+        nostrApi: {
+          privateKey: SENDER_HEX,
+          relays: RELAY_URL,
+        },
+      },
+    );
+
+    // Bring the relay back up after a short delay (before the retry fires)
+    setTimeout(() => {
+      server = new Server(RELAY_URL);
+      server.on("connection", (socket) => {
+        socket.on("message", (raw) => {
+          const data = JSON.parse(raw as string);
+          if (data[0] === "EVENT") {
+            const event = data[1] as NostrEvent;
+            receivedEvents.push(event);
+            socket.send(JSON.stringify(["OK", event.id, true]));
+          }
+        });
+      });
+    }, 500);
+
+    const [[result]] = await node.execute.call(ctx);
+
+    expect(result.json).toMatchObject({ success: true });
+    expect(receivedEvents).toHaveLength(1);
+
+    const rumor = unwrapEvent(receivedEvents[0], RECIPIENT_KEY);
+    expect(rumor.content).toBe("retry me");
+  });
 });
