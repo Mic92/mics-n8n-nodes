@@ -92,6 +92,11 @@
               pname = "n8n-nodes-opencrow";
               description = "n8n node to send trigger messages to OpenCrow";
             };
+
+            n8n-nodes-imap = mkN8nNode {
+              pname = "n8n-nodes-imap";
+              description = "n8n node to interact with IMAP mailboxes";
+            };
           };
 
           devShells.default = pkgs.mkShell {
@@ -123,6 +128,7 @@
           checks = {
             n8n-nodes-nostr = config.packages.n8n-nodes-nostr;
             n8n-nodes-opencrow = config.packages.n8n-nodes-opencrow;
+            n8n-nodes-imap = config.packages.n8n-nodes-imap;
             devShell = config.devShells.default;
           };
         };

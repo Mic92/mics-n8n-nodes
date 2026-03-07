@@ -108,7 +108,12 @@ async function sendGiftWrappedDM(
  */
 async function publishProfile(
   senderPrivateKey: Uint8Array,
-  profile: { name: string; displayName: string; about: string; picture: string },
+  profile: {
+    name: string;
+    displayName: string;
+    about: string;
+    picture: string;
+  },
   relays: string[],
 ): Promise<NostrEvent> {
   const meta: Record<string, string> = {};
@@ -264,7 +269,7 @@ export class Nostr implements INodeType {
             resource: ["profile"],
           },
         },
-        description: "Username / handle (NIP-01 \"name\" field)",
+        description: 'Username / handle (NIP-01 "name" field)',
       },
       {
         displayName: "Display Name",
@@ -277,7 +282,7 @@ export class Nostr implements INodeType {
           },
         },
         description:
-          "Human-readable display name (NIP-01 \"display_name\" field)",
+          'Human-readable display name (NIP-01 "display_name" field)',
       },
       {
         displayName: "About",
@@ -292,7 +297,7 @@ export class Nostr implements INodeType {
             resource: ["profile"],
           },
         },
-        description: "Bio / description (NIP-01 \"about\" field)",
+        description: 'Bio / description (NIP-01 "about" field)',
       },
       {
         displayName: "Picture URL",
@@ -304,7 +309,7 @@ export class Nostr implements INodeType {
             resource: ["profile"],
           },
         },
-        description: "URL of the profile picture (NIP-01 \"picture\" field)",
+        description: 'URL of the profile picture (NIP-01 "picture" field)',
       },
     ],
   };
@@ -349,7 +354,12 @@ export class Nostr implements INodeType {
             picture: this.getNodeParameter("profilePicture", i) as string,
           };
 
-          if (!profile.name && !profile.displayName && !profile.about && !profile.picture) {
+          if (
+            !profile.name &&
+            !profile.displayName &&
+            !profile.about &&
+            !profile.picture
+          ) {
             throw new NodeOperationError(
               this.getNode(),
               "At least one profile field must be set",
@@ -357,11 +367,7 @@ export class Nostr implements INodeType {
             );
           }
 
-          const event = await publishProfile(
-            senderPrivateKey,
-            profile,
-            relays,
-          );
+          const event = await publishProfile(senderPrivateKey, profile, relays);
 
           returnData.push(
             ...this.helpers.constructExecutionMetaData(
