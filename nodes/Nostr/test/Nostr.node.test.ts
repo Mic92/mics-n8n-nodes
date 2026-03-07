@@ -6,8 +6,8 @@ import { getPublicKey, generateSecretKey } from "nostr-tools/pure";
 import { npubEncode } from "nostr-tools/nip19";
 
 import type { NostrEvent } from "nostr-tools";
-import type { IExecuteFunctions, INodeExecutionData } from "n8n-workflow";
 
+import { createMockExecuteFunctions } from "../../../test/helpers";
 import { Nostr } from "../Nostr.node";
 
 // Route SimplePool through mock-socket so we never hit the network
@@ -19,37 +19,6 @@ const SENDER_HEX = Buffer.from(SENDER_KEY).toString("hex");
 
 const RECIPIENT_KEY = generateSecretKey();
 const RECIPIENT_PUBKEY = getPublicKey(RECIPIENT_KEY);
-
-function createMockExecuteFunctions(opts: {
-  message: string;
-  recipientPubkey: string;
-  privateKey: string;
-  relays: string;
-  continueOnFail?: boolean;
-}): IExecuteFunctions {
-  const params: Record<string, string> = {
-    message: opts.message,
-    recipientPubkey: opts.recipientPubkey,
-  };
-
-  return {
-    getInputData: () => [{ json: {} }] as INodeExecutionData[],
-    getNodeParameter: (name: string) => params[name],
-    getCredentials: async () => ({
-      privateKey: opts.privateKey,
-      relays: opts.relays,
-    }),
-    getNode: () => ({ name: "Nostr", typeVersion: 1, type: "nostr" }),
-    continueOnFail: () => opts.continueOnFail ?? false,
-    helpers: {
-      returnJsonArray: (data: object) => [{ json: data }],
-      constructExecutionMetaData: (
-        inputData: INodeExecutionData[],
-        _opts: object,
-      ) => inputData,
-    },
-  } as unknown as IExecuteFunctions;
-}
 
 describe("Nostr node", () => {
   const RELAY_URL = "wss://mock.relay.nostr-node/1";
@@ -78,12 +47,18 @@ describe("Nostr node", () => {
 
   it("sends a gift-wrapped DM that the recipient can decrypt", async () => {
     const node = new Nostr();
-    const ctx = createMockExecuteFunctions({
-      message: "Are you going to the party tonight?",
-      recipientPubkey: RECIPIENT_PUBKEY,
-      privateKey: SENDER_HEX,
-      relays: RELAY_URL,
-    });
+    const ctx = createMockExecuteFunctions(
+      {
+        message: "Are you going to the party tonight?",
+        recipientPubkey: RECIPIENT_PUBKEY,
+      },
+      {
+        nostrApi: {
+          privateKey: SENDER_HEX,
+          relays: RELAY_URL,
+        },
+      },
+    );
 
     const [[result]] = await node.execute.call(ctx);
 
@@ -108,12 +83,18 @@ describe("Nostr node", () => {
 
   it("accepts npub-encoded recipient keys", async () => {
     const node = new Nostr();
-    const ctx = createMockExecuteFunctions({
-      message: "hello npub",
-      recipientPubkey: npubEncode(RECIPIENT_PUBKEY),
-      privateKey: SENDER_HEX,
-      relays: RELAY_URL,
-    });
+    const ctx = createMockExecuteFunctions(
+      {
+        message: "hello npub",
+        recipientPubkey: npubEncode(RECIPIENT_PUBKEY),
+      },
+      {
+        nostrApi: {
+          privateKey: SENDER_HEX,
+          relays: RELAY_URL,
+        },
+      },
+    );
 
     const [[result]] = await node.execute.call(ctx);
     expect(result.json).toMatchObject({ success: true });
@@ -124,12 +105,18 @@ describe("Nostr node", () => {
 
   it("third party cannot decrypt the wrapped event", async () => {
     const node = new Nostr();
-    const ctx = createMockExecuteFunctions({
-      message: "secret stuff",
-      recipientPubkey: RECIPIENT_PUBKEY,
-      privateKey: SENDER_HEX,
-      relays: RELAY_URL,
-    });
+    const ctx = createMockExecuteFunctions(
+      {
+        message: "secret stuff",
+        recipientPubkey: RECIPIENT_PUBKEY,
+      },
+      {
+        nostrApi: {
+          privateKey: SENDER_HEX,
+          relays: RELAY_URL,
+        },
+      },
+    );
 
     await node.execute.call(ctx);
     expect(receivedEvents).toHaveLength(1);

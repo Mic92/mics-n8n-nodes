@@ -9,7 +9,7 @@ import type {
   INodeTypeDescription,
 } from "n8n-workflow";
 
-const TRIGGER_PIPE_PATH = "/var/lib/opencrow/sessions/trigger.pipe";
+export const DEFAULT_PIPE_PATH = "/var/lib/opencrow/sessions/trigger.pipe";
 
 export class OpenCrow implements INodeType {
   description: INodeTypeDescription = {
@@ -37,6 +37,13 @@ export class OpenCrow implements INodeType {
         },
         description: "The message to send to OpenCrow as a trigger",
       },
+      {
+        displayName: "Pipe Path",
+        name: "pipePath",
+        type: "string",
+        default: DEFAULT_PIPE_PATH,
+        description: "Path to the OpenCrow trigger pipe",
+      },
     ],
   };
 
@@ -47,6 +54,11 @@ export class OpenCrow implements INodeType {
     for (let i = 0; i < items.length; i++) {
       try {
         const message = this.getNodeParameter("message", i) as string;
+        const pipePath = this.getNodeParameter(
+          "pipePath",
+          i,
+          DEFAULT_PIPE_PATH,
+        ) as string;
 
         if (!message.trim()) {
           throw new NodeOperationError(
@@ -59,7 +71,7 @@ export class OpenCrow implements INodeType {
         // Each line in the pipe is a separate trigger, so collapse to one line
         const singleLine = message.replace(/\n/g, " ").trim();
 
-        await writeToFifo(TRIGGER_PIPE_PATH, singleLine + "\n");
+        await writeToFifo(pipePath, singleLine + "\n");
 
         returnData.push(
           ...this.helpers.constructExecutionMetaData(
@@ -94,7 +106,7 @@ export class OpenCrow implements INodeType {
  * Write a string to a FIFO. Opens with O_WRONLY|O_NONBLOCK so the call
  * fails immediately if no reader has the pipe open (instead of hanging).
  */
-export function writeToFifo(pipePath: string, data: string): Promise<void> {
+function writeToFifo(pipePath: string, data: string): Promise<void> {
   return new Promise((resolve, reject) => {
     let fd: number;
     try {
