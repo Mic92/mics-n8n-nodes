@@ -31,8 +31,12 @@
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/NostrApi.credentials.js"
+    ],
     "nodes": [
-      "dist/nodes/OpenCrow/OpenCrow.node.js"
+      "dist/nodes/OpenCrow/OpenCrow.node.js",
+      "dist/nodes/Nostr/Nostr.node.js"
     ]
   },
   "devDependencies": {
@@ -42,6 +46,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-n8n-nodes-base": "^1.16.1",
     "jest": "^29.7.0",
+    "mock-socket": "^9.3.1",
     "n8n-workflow": "^2.10.2",
     "prettier": "^3.8.1",
     "ts-jest": "^29.4.6",
@@ -49,5 +54,8 @@
   },
   "peerDependencies": {
     "n8n-workflow": "*"
+  },
+  "dependencies": {
+    "nostr-tools": "^2.23.3"
   }
 }
