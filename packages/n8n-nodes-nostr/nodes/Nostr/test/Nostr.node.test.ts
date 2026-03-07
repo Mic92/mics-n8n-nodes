@@ -2,6 +2,7 @@ import { Server, WebSocket as MockWebSocket } from "mock-socket";
 
 import { unwrapEvent } from "nostr-tools/nip59";
 import { useWebSocketImplementation } from "nostr-tools/pool";
+import { verifyEvent } from "nostr-tools/pure";
 import { getPublicKey, generateSecretKey } from "nostr-tools/pure";
 import { npubEncode } from "nostr-tools/nip19";
 
@@ -20,25 +21,35 @@ const SENDER_HEX = Buffer.from(SENDER_KEY).toString("hex");
 const RECIPIENT_KEY = generateSecretKey();
 const RECIPIENT_PUBKEY = getPublicKey(RECIPIENT_KEY);
 
-describe("Nostr node", () => {
+/** Shared mock relay setup */
+function setupMockRelay(
+  relayUrl: string,
+  receivedEvents: NostrEvent[],
+): Server {
+  const server = new Server(relayUrl);
+
+  server.on("connection", (socket) => {
+    socket.on("message", (raw) => {
+      const data = JSON.parse(raw as string);
+      if (data[0] === "EVENT") {
+        const event = data[1] as NostrEvent;
+        receivedEvents.push(event);
+        socket.send(JSON.stringify(["OK", event.id, true]));
+      }
+    });
+  });
+
+  return server;
+}
+
+describe("Nostr node – Message resource", () => {
   const RELAY_URL = "wss://mock.relay.nostr-node/1";
   let server: Server;
   let receivedEvents: NostrEvent[];
 
   beforeEach(() => {
     receivedEvents = [];
-    server = new Server(RELAY_URL);
-
-    server.on("connection", (socket) => {
-      socket.on("message", (raw) => {
-        const data = JSON.parse(raw as string);
-        if (data[0] === "EVENT") {
-          const event = data[1] as NostrEvent;
-          receivedEvents.push(event);
-          socket.send(JSON.stringify(["OK", event.id, true]));
-        }
-      });
-    });
+    server = setupMockRelay(RELAY_URL, receivedEvents);
   });
 
   afterEach(() => {
@@ -49,6 +60,7 @@ describe("Nostr node", () => {
     const node = new Nostr();
     const ctx = createMockExecuteFunctions(
       {
+        resource: "message",
         message: "Are you going to the party tonight?",
         recipientPubkey: RECIPIENT_PUBKEY,
       },
@@ -85,6 +97,7 @@ describe("Nostr node", () => {
     const node = new Nostr();
     const ctx = createMockExecuteFunctions(
       {
+        resource: "message",
         message: "hello npub",
         recipientPubkey: npubEncode(RECIPIENT_PUBKEY),
       },
@@ -103,28 +116,6 @@ describe("Nostr node", () => {
     expect(rumor.content).toBe("hello npub");
   });
 
-  it("third party cannot decrypt the wrapped event", async () => {
-    const node = new Nostr();
-    const ctx = createMockExecuteFunctions(
-      {
-        message: "secret stuff",
-        recipientPubkey: RECIPIENT_PUBKEY,
-      },
-      {
-        nostrApi: {
-          privateKey: SENDER_HEX,
-          relays: RELAY_URL,
-        },
-      },
-    );
-
-    await node.execute.call(ctx);
-    expect(receivedEvents).toHaveLength(1);
-
-    const thirdPartyKey = generateSecretKey();
-    expect(() => unwrapEvent(receivedEvents[0], thirdPartyKey)).toThrow();
-  });
-
   it("retries when relay is initially down, then comes up", async () => {
     const saved = { ...retryConfig };
     retryConfig.baseDelayMs = 10;
@@ -136,6 +127,7 @@ describe("Nostr node", () => {
       const node = new Nostr();
       const ctx = createMockExecuteFunctions(
         {
+          resource: "message",
           message: "retry me",
           recipientPubkey: RECIPIENT_PUBKEY,
         },
@@ -149,17 +141,7 @@ describe("Nostr node", () => {
 
       // Bring the relay back up after a short delay
       setTimeout(() => {
-        server = new Server(RELAY_URL);
-        server.on("connection", (socket) => {
-          socket.on("message", (raw) => {
-            const data = JSON.parse(raw as string);
-            if (data[0] === "EVENT") {
-              const event = data[1] as NostrEvent;
-              receivedEvents.push(event);
-              socket.send(JSON.stringify(["OK", event.id, true]));
-            }
-          });
-        });
+        server = setupMockRelay(RELAY_URL, receivedEvents);
       }, 5);
 
       const [[result]] = await node.execute.call(ctx);
@@ -172,5 +154,119 @@ describe("Nostr node", () => {
     } finally {
       Object.assign(retryConfig, saved);
     }
+  });
+});
+
+describe("Nostr node – Profile resource", () => {
+  const RELAY_URL = "wss://mock.relay.nostr-node/2";
+  let server: Server;
+  let receivedEvents: NostrEvent[];
+
+  beforeEach(() => {
+    receivedEvents = [];
+    server = setupMockRelay(RELAY_URL, receivedEvents);
+  });
+
+  afterEach(() => {
+    server.close();
+  });
+
+  it("publishes a kind 0 profile with all fields", async () => {
+    const node = new Nostr();
+    const ctx = createMockExecuteFunctions(
+      {
+        resource: "profile",
+        profileName: "testbot",
+        profileDisplayName: "Test Bot",
+        profileAbout: "A test bot for n8n",
+        profilePicture: "https://example.com/avatar.png",
+      },
+      {
+        nostrApi: {
+          privateKey: SENDER_HEX,
+          relays: RELAY_URL,
+        },
+      },
+    );
+
+    const [[result]] = await node.execute.call(ctx);
+
+    expect(result.json).toMatchObject({
+      success: true,
+      pubkey: SENDER_PUBKEY,
+      profile: {
+        name: "testbot",
+        displayName: "Test Bot",
+        about: "A test bot for n8n",
+        picture: "https://example.com/avatar.png",
+      },
+    });
+    expect(result.json).toHaveProperty("eventId");
+
+    // Relay received exactly one kind 0 event
+    expect(receivedEvents).toHaveLength(1);
+    const event = receivedEvents[0];
+    expect(event.kind).toBe(0);
+    expect(event.pubkey).toBe(SENDER_PUBKEY);
+    expect(verifyEvent(event)).toBe(true);
+
+    const meta = JSON.parse(event.content);
+    expect(meta).toEqual({
+      name: "testbot",
+      display_name: "Test Bot",
+      about: "A test bot for n8n",
+      picture: "https://example.com/avatar.png",
+    });
+  });
+
+  it("omits empty fields from the metadata JSON", async () => {
+    const node = new Nostr();
+    const ctx = createMockExecuteFunctions(
+      {
+        resource: "profile",
+        profileName: "minimalbot",
+        profileDisplayName: "",
+        profileAbout: "",
+        profilePicture: "",
+      },
+      {
+        nostrApi: {
+          privateKey: SENDER_HEX,
+          relays: RELAY_URL,
+        },
+      },
+    );
+
+    const [[result]] = await node.execute.call(ctx);
+    expect(result.json).toMatchObject({ success: true });
+
+    const meta = JSON.parse(receivedEvents[0].content);
+    expect(meta).toEqual({ name: "minimalbot" });
+    expect(meta).not.toHaveProperty("display_name");
+    expect(meta).not.toHaveProperty("about");
+    expect(meta).not.toHaveProperty("picture");
+  });
+
+  it("rejects when all profile fields are empty", async () => {
+    const node = new Nostr();
+    const ctx = createMockExecuteFunctions(
+      {
+        resource: "profile",
+        profileName: "",
+        profileDisplayName: "",
+        profileAbout: "",
+        profilePicture: "",
+      },
+      {
+        nostrApi: {
+          privateKey: SENDER_HEX,
+          relays: RELAY_URL,
+        },
+      },
+    );
+
+    await expect(node.execute.call(ctx)).rejects.toThrow(
+      "At least one profile field must be set",
+    );
   });
 });

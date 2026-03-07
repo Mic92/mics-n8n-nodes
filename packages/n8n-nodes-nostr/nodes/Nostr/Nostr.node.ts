@@ -12,7 +12,7 @@ import type { NostrEvent } from "nostr-tools";
 import { decode } from "nostr-tools/nip19";
 import { wrapEvent } from "nostr-tools/nip59";
 import { SimplePool } from "nostr-tools/pool";
-import { getPublicKey } from "nostr-tools/pure";
+import { finalizeEvent, getPublicKey } from "nostr-tools/pure";
 
 /**
  * Parse a private key supplied as nsec1… bech32 or raw 64-char hex.
@@ -96,6 +96,50 @@ async function sendGiftWrappedDM(
     recipientPubkey,
   );
 
+  await publishToRelays(wrap, relays);
+
+  return wrap;
+}
+
+/**
+ * Build a NIP-01 kind 0 metadata event from profile fields, sign it,
+ * and publish to the configured relays.
+ * Retries with exponential back-off like sendGiftWrappedDM.
+ */
+async function publishProfile(
+  senderPrivateKey: Uint8Array,
+  profile: { name: string; displayName: string; about: string; picture: string },
+  relays: string[],
+): Promise<NostrEvent> {
+  const meta: Record<string, string> = {};
+  if (profile.name) meta["name"] = profile.name;
+  if (profile.displayName) meta["display_name"] = profile.displayName;
+  if (profile.about) meta["about"] = profile.about;
+  if (profile.picture) meta["picture"] = profile.picture;
+
+  const event = finalizeEvent(
+    {
+      kind: 0,
+      content: JSON.stringify(meta),
+      tags: [],
+      created_at: Math.round(Date.now() / 1000),
+    },
+    senderPrivateKey,
+  );
+
+  await publishToRelays(event, relays);
+
+  return event;
+}
+
+/**
+ * Publish an event to relays with exponential back-off retry.
+ * Resolves once at least one relay accepts.
+ */
+async function publishToRelays(
+  event: NostrEvent,
+  relays: string[],
+): Promise<void> {
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
@@ -109,11 +153,7 @@ async function sendGiftWrappedDM(
 
     const pool = new SimplePool();
     try {
-      // pool.publish() resolves with a relay URL on success, but also
-      // resolves with error strings like "connection failure: …" instead
-      // of rejecting.  Turn those into rejections so Promise.any() only
-      // settles on a genuine acceptance.
-      const publishPromises = pool.publish(relays, wrap).map((p) =>
+      const publishPromises = pool.publish(relays, event).map((p) =>
         p.then((result) => {
           if (
             typeof result === "string" &&
@@ -127,7 +167,7 @@ async function sendGiftWrappedDM(
         }),
       );
       await Promise.any(publishPromises);
-      return wrap;
+      return;
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
     } finally {
@@ -147,9 +187,10 @@ export class Nostr implements INodeType {
     icon: "fa:hashtag",
     group: ["output"],
     version: 1,
-    subtitle: "Send NIP-59 Gift-Wrapped DM",
+    subtitle:
+      '={{$parameter["resource"] === "profile" ? "Set Profile" : "Send DM"}}',
     description:
-      "Send an encrypted direct message via Nostr using the NIP-59 Gift Wrap protocol",
+      "Interact with Nostr: send encrypted DMs (NIP-59) or publish profile metadata (NIP-01)",
     defaults: {
       name: "Nostr",
     },
@@ -163,11 +204,36 @@ export class Nostr implements INodeType {
     ],
     properties: [
       {
+        displayName: "Resource",
+        name: "resource",
+        type: "options",
+        noDataExpression: true,
+        options: [
+          {
+            name: "Message",
+            value: "message",
+            description: "Send an encrypted direct message (NIP-59 Gift Wrap)",
+          },
+          {
+            name: "Profile",
+            value: "profile",
+            description: "Publish profile metadata (NIP-01 kind 0)",
+          },
+        ],
+        default: "message",
+      },
+      // --- Message fields ---
+      {
         displayName: "Recipient Public Key",
         name: "recipientPubkey",
         type: "string",
         default: "",
         required: true,
+        displayOptions: {
+          show: {
+            resource: ["message"],
+          },
+        },
         description:
           "The recipient's public key in npub1… bech32 or 64-char hex format",
       },
@@ -180,7 +246,65 @@ export class Nostr implements INodeType {
         typeOptions: {
           rows: 4,
         },
+        displayOptions: {
+          show: {
+            resource: ["message"],
+          },
+        },
         description: "The message content to send as a NIP-59 gift-wrapped DM",
+      },
+      // --- Profile fields ---
+      {
+        displayName: "Name",
+        name: "profileName",
+        type: "string",
+        default: "",
+        displayOptions: {
+          show: {
+            resource: ["profile"],
+          },
+        },
+        description: "Username / handle (NIP-01 \"name\" field)",
+      },
+      {
+        displayName: "Display Name",
+        name: "profileDisplayName",
+        type: "string",
+        default: "",
+        displayOptions: {
+          show: {
+            resource: ["profile"],
+          },
+        },
+        description:
+          "Human-readable display name (NIP-01 \"display_name\" field)",
+      },
+      {
+        displayName: "About",
+        name: "profileAbout",
+        type: "string",
+        default: "",
+        typeOptions: {
+          rows: 3,
+        },
+        displayOptions: {
+          show: {
+            resource: ["profile"],
+          },
+        },
+        description: "Bio / description (NIP-01 \"about\" field)",
+      },
+      {
+        displayName: "Picture URL",
+        name: "profilePicture",
+        type: "string",
+        default: "",
+        displayOptions: {
+          show: {
+            resource: ["profile"],
+          },
+        },
+        description: "URL of the profile picture (NIP-01 \"picture\" field)",
       },
     ],
   };
@@ -210,43 +334,84 @@ export class Nostr implements INodeType {
       );
     }
 
+    const resource = this.getNodeParameter("resource", 0) as string;
+
     for (let i = 0; i < items.length; i++) {
       try {
-        const message = this.getNodeParameter("message", i) as string;
-        const recipientRaw = this.getNodeParameter(
-          "recipientPubkey",
-          i,
-        ) as string;
+        if (resource === "profile") {
+          const profile = {
+            name: this.getNodeParameter("profileName", i) as string,
+            displayName: this.getNodeParameter(
+              "profileDisplayName",
+              i,
+            ) as string,
+            about: this.getNodeParameter("profileAbout", i) as string,
+            picture: this.getNodeParameter("profilePicture", i) as string,
+          };
 
-        if (!message.trim()) {
-          throw new NodeOperationError(
-            this.getNode(),
-            "Message cannot be empty",
-            { itemIndex: i },
+          if (!profile.name && !profile.displayName && !profile.about && !profile.picture) {
+            throw new NodeOperationError(
+              this.getNode(),
+              "At least one profile field must be set",
+              { itemIndex: i },
+            );
+          }
+
+          const event = await publishProfile(
+            senderPrivateKey,
+            profile,
+            relays,
+          );
+
+          returnData.push(
+            ...this.helpers.constructExecutionMetaData(
+              this.helpers.returnJsonArray({
+                success: true,
+                pubkey: senderPubkey,
+                eventId: event.id,
+                profile,
+                relays,
+              }),
+              { itemData: { item: i } },
+            ),
+          );
+        } else {
+          const message = this.getNodeParameter("message", i) as string;
+          const recipientRaw = this.getNodeParameter(
+            "recipientPubkey",
+            i,
+          ) as string;
+
+          if (!message.trim()) {
+            throw new NodeOperationError(
+              this.getNode(),
+              "Message cannot be empty",
+              { itemIndex: i },
+            );
+          }
+
+          const recipientPubkey = parseRecipientPubkey(recipientRaw);
+
+          const wrap = await sendGiftWrappedDM(
+            senderPrivateKey,
+            recipientPubkey,
+            message,
+            relays,
+          );
+
+          returnData.push(
+            ...this.helpers.constructExecutionMetaData(
+              this.helpers.returnJsonArray({
+                success: true,
+                senderPubkey,
+                recipientPubkey,
+                eventId: wrap.id,
+                relays,
+              }),
+              { itemData: { item: i } },
+            ),
           );
         }
-
-        const recipientPubkey = parseRecipientPubkey(recipientRaw);
-
-        const wrap = await sendGiftWrappedDM(
-          senderPrivateKey,
-          recipientPubkey,
-          message,
-          relays,
-        );
-
-        returnData.push(
-          ...this.helpers.constructExecutionMetaData(
-            this.helpers.returnJsonArray({
-              success: true,
-              senderPubkey,
-              recipientPubkey,
-              eventId: wrap.id,
-              relays,
-            }),
-            { itemData: { item: i } },
-          ),
-        );
       } catch (error) {
         if (this.continueOnFail()) {
           const errorMessage =
