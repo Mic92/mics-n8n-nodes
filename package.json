@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
-    "@types/node": "^22.0.0",
+    "@types/node": "^25.3.5",
     "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-n8n-nodes-base": "^1.16.1",
