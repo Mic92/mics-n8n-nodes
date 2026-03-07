@@ -26,7 +26,9 @@
     "test:watch": "jest --watch",
     "prepublishOnly": "npm run build"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "n8n": {
     "n8nNodesApiVersion": 1,
     "nodes": [

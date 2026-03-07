@@ -21,7 +21,10 @@ describe("writeToFifo", () => {
 
   it("writes a message through the FIFO", async () => {
     // Open read end in background so write doesn't block/ENXIO
-    const readFd = fs.openSync(pipePath, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+    const readFd = fs.openSync(
+      pipePath,
+      fs.constants.O_RDONLY | fs.constants.O_NONBLOCK,
+    );
 
     await writeToFifo(pipePath, "hello from n8n\n");
 
