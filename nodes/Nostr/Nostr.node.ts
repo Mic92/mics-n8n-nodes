@@ -64,8 +64,11 @@ function parseRelays(raw: string): string[] {
     .filter(Boolean);
 }
 
-const MAX_RETRIES = 5;
-const BASE_DELAY_MS = 1000;
+/** Exported so tests can override with small values. */
+export const retryConfig = {
+  maxRetries: 5,
+  baseDelayMs: 1000,
+};
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -94,9 +97,9 @@ async function sendGiftWrappedDM(
 
   let lastError: Error | undefined;
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+  for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
     if (attempt > 0) {
-      await sleep(BASE_DELAY_MS * Math.pow(2, attempt - 1));
+      await sleep(retryConfig.baseDelayMs * Math.pow(2, attempt - 1));
     }
 
     const pool = new SimplePool();
@@ -128,7 +131,7 @@ async function sendGiftWrappedDM(
   }
 
   throw new Error(
-    `Failed to publish to any relay after ${MAX_RETRIES + 1} attempts: ${lastError?.message}`,
+    `Failed to publish to any relay after ${retryConfig.maxRetries + 1} attempts: ${lastError?.message}`,
   );
 }
 
