@@ -1,0 +1,40 @@
+{
+  "name": "n8n-nodes-kagi",
+  "version": "1.0.0",
+  "description": "n8n node for Kagi Search and Quick Answer (AI summary)",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "kagi",
+    "search",
+    "ai-summary"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "Jörg Thalheim",
+    "email": "joerg@thalheim.io"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "nodes": [
+      "dist/nodes/Kagi/Kagi.node.js"
+    ],
+    "credentials": [
+      "dist/nodes/Kagi/KagiApi.credentials.js"
+    ]
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  },
+  "dependencies": {
+    "node-html-parser": "^7.1.0"
+  }
+}
