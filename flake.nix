@@ -82,7 +82,7 @@
               doCheck = true;
               checkPhase = ''
                 runHook preCheck
-                npx jest --testPathPattern='packages/${pname}/'
+                npx jest --testPathPatterns='packages/${pname}/'
                 runHook postCheck
               '';
 
