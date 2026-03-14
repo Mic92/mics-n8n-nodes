@@ -108,9 +108,7 @@ export class KagiClient {
         Origin: this.baseUrl,
         Connection: "close",
         "Content-Length": "0",
-        ...(sessionCookie
-          ? { "X-Kagi-Authorization": sessionCookie }
-          : {}),
+        ...(sessionCookie ? { "X-Kagi-Authorization": sessionCookie } : {}),
       },
       followRedirects: true,
     });
@@ -303,7 +301,10 @@ export class KagiClient {
           for (const c of setCookies) {
             const parts = c.split(";")[0].split("=");
             if (parts.length >= 2) {
-              this.cookies.set(parts[0].trim(), parts.slice(1).join("=").trim());
+              this.cookies.set(
+                parts[0].trim(),
+                parts.slice(1).join("=").trim(),
+              );
             }
           }
         }

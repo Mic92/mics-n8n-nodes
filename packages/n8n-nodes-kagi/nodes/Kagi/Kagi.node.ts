@@ -46,8 +46,7 @@ export class Kagi implements INodeType {
           {
             name: "Quick Answer",
             value: "quickAnswer",
-            description:
-              "Get an AI-powered summary answer with references",
+            description: "Get an AI-powered summary answer with references",
           },
         ],
         default: "quickAnswer",
