@@ -6,18 +6,18 @@ instead of the paid API, so queries are covered by your Kagi subscription.
 
 **Credential: Kagi**
 
-| Field         | Description                                                                                              |
-| ------------- | -------------------------------------------------------------------------------------------------------- |
+| Field         | Description                                                                                     |
+| ------------- | ----------------------------------------------------------------------------------------------- |
 | Session Token | Kagi session token — generate one at [Settings → Session Link](https://kagi.com/settings?p=api) |
 
 ## Operation: Search
 
 Return web search result links scraped from Kagi's HTML search page.
 
-| Parameter   | Description                                    |
-| ----------- | ---------------------------------------------- |
-| Query       | The search query                               |
-| Max Results | Maximum number of results to return (1–20)     |
+| Parameter   | Description                                |
+| ----------- | ------------------------------------------ |
+| Query       | The search query                           |
+| Max Results | Maximum number of results to return (1–20) |
 
 Each result contains `title`, `url`, and `snippet`.
 

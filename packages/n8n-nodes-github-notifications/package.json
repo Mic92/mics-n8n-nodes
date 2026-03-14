@@ -1,0 +1,32 @@
+{
+  "name": "n8n-nodes-github-notifications",
+  "version": "1.0.0",
+  "description": "n8n node to list GitHub notifications",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "github",
+    "notifications"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "Jörg Thalheim",
+    "email": "joerg@thalheim.io"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "nodes": [
+      "dist/nodes/GitHubNotifications/GitHubNotifications.node.js"
+    ]
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}

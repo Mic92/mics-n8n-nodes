@@ -1,6 +1,7 @@
-import * as fs from "fs";
+import * as fs from "node:fs";
+import * as fsp from "node:fs/promises";
 
-import { NodeOperationError } from "n8n-workflow";
+import { NodeConnectionTypes, NodeOperationError } from "n8n-workflow";
 
 import type {
   IExecuteFunctions,
@@ -23,8 +24,9 @@ export class OpenCrow implements INodeType {
     defaults: {
       name: "OpenCrow",
     },
-    inputs: ["main"],
-    outputs: ["main"],
+    usableAsTool: true,
+    inputs: [NodeConnectionTypes.Main],
+    outputs: [NodeConnectionTypes.Main],
     properties: [
       {
         displayName: "Message",
@@ -106,35 +108,25 @@ export class OpenCrow implements INodeType {
  * Write a string to a FIFO. Opens with O_WRONLY|O_NONBLOCK so the call
  * fails immediately if no reader has the pipe open (instead of hanging).
  */
-function writeToFifo(pipePath: string, data: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    let fd: number;
-    try {
-      fd = fs.openSync(
-        pipePath,
-        fs.constants.O_WRONLY | fs.constants.O_NONBLOCK,
-      );
-    } catch (err) {
-      const code = (err as NodeJS.ErrnoException).code;
-      if (code === "ENXIO") {
-        reject(new Error(`OpenCrow is not running (no reader on ${pipePath})`));
-      } else if (code === "ENOENT") {
-        reject(new Error(`Trigger pipe not found at ${pipePath}`));
-      } else {
-        reject(err);
-      }
-      return;
+async function writeToFifo(pipePath: string, data: string): Promise<void> {
+  let handle: fsp.FileHandle;
+  try {
+    handle = await fsp.open(
+      pipePath,
+      fs.constants.O_WRONLY | fs.constants.O_NONBLOCK,
+    );
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENXIO") {
+      throw new Error(`OpenCrow is not running (no reader on ${pipePath})`);
+    } else if (code === "ENOENT") {
+      throw new Error(`Trigger pipe not found at ${pipePath}`);
     }
-
-    fs.write(fd, data, (writeErr) => {
-      fs.close(fd, () => {
-        // ignore close error
-      });
-      if (writeErr) {
-        reject(writeErr);
-      } else {
-        resolve();
-      }
-    });
-  });
+    throw err;
+  }
+  try {
+    await handle.write(data);
+  } finally {
+    await handle.close();
+  }
 }

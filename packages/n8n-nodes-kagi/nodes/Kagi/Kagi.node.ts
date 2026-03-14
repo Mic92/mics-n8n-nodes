@@ -1,4 +1,4 @@
-import { NodeOperationError } from "n8n-workflow";
+import { NodeConnectionTypes, NodeOperationError } from "n8n-workflow";
 
 import type {
   IExecuteFunctions,
@@ -23,8 +23,9 @@ export class Kagi implements INodeType {
     defaults: {
       name: "Kagi",
     },
-    inputs: ["main"],
-    outputs: ["main"],
+    usableAsTool: true,
+    inputs: [NodeConnectionTypes.Main],
+    outputs: [NodeConnectionTypes.Main],
     credentials: [
       {
         name: "kagiApi",
@@ -46,8 +47,7 @@ export class Kagi implements INodeType {
           {
             name: "Quick Answer",
             value: "quickAnswer",
-            description:
-              "Get an AI-powered summary answer with references",
+            description: "Get an AI-powered summary answer with references",
           },
         ],
         default: "quickAnswer",

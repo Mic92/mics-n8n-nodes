@@ -30,10 +30,16 @@
       perSystem =
         {
           pkgs,
+          lib,
           config,
           ...
         }:
         let
+          # Shared npm dependencies — only re-fetched when package-lock.json changes.
+          npmDeps = pkgs.importNpmLock {
+            npmRoot = ./.;
+          };
+
           mkN8nNode =
             {
               pname,
@@ -43,11 +49,22 @@
               inherit pname;
               version = "1.0.0";
 
-              src = ./.;
-
-              npmDeps = pkgs.importNpmLock {
-                npmRoot = ./.;
+              # Only include files relevant to this specific package so that
+              # changing one node doesn't rebuild all the others.
+              src = lib.fileset.toSource {
+                root = ./.;
+                fileset = lib.fileset.unions [
+                  ./tsconfig.base.json
+                  ./tsconfig.json
+                  ./jest.config.js
+                  ./test
+                  ./package.json
+                  ./package-lock.json
+                  (./. + "/packages/${pname}")
+                ];
               };
+
+              inherit npmDeps;
               npmConfigHook = pkgs.importNpmLock.npmConfigHook;
 
               makeCacheWritable = true;
@@ -60,6 +77,13 @@
                 runHook preBuild
                 npm run build --workspace=packages/${pname}
                 runHook postBuild
+              '';
+
+              doCheck = true;
+              checkPhase = ''
+                runHook preCheck
+                npx jest --testPathPattern='packages/${pname}/'
+                runHook postCheck
               '';
 
               installPhase = ''
@@ -77,27 +101,19 @@
 
               meta = {
                 inherit description;
-                license = pkgs.lib.licenses.mit;
+                license = lib.licenses.mit;
               };
             };
+          nodes = {
+            n8n-nodes-nostr = "n8n node to send encrypted DMs via Nostr using NIP-59 Gift Wrap";
+            n8n-nodes-opencrow = "n8n node to send trigger messages to OpenCrow";
+            n8n-nodes-imap = "n8n node to interact with IMAP mailboxes";
+            n8n-nodes-github-notifications = "n8n node to list GitHub notifications";
+            n8n-nodes-kagi = "n8n node for Kagi Search and Quick Answer (AI summary)";
+          };
         in
         {
-          packages = {
-            n8n-nodes-nostr = mkN8nNode {
-              pname = "n8n-nodes-nostr";
-              description = "n8n node to send encrypted DMs via Nostr using NIP-59 Gift Wrap";
-            };
-
-            n8n-nodes-opencrow = mkN8nNode {
-              pname = "n8n-nodes-opencrow";
-              description = "n8n node to send trigger messages to OpenCrow";
-            };
-
-            n8n-nodes-imap = mkN8nNode {
-              pname = "n8n-nodes-imap";
-              description = "n8n node to interact with IMAP mailboxes";
-            };
-          };
+          packages = lib.mapAttrs (pname: description: mkN8nNode { inherit pname description; }) nodes;
 
           devShells.default = pkgs.mkShell {
             buildInputs = with pkgs; [
@@ -125,10 +141,7 @@
             };
           };
 
-          checks = {
-            n8n-nodes-nostr = config.packages.n8n-nodes-nostr;
-            n8n-nodes-opencrow = config.packages.n8n-nodes-opencrow;
-            n8n-nodes-imap = config.packages.n8n-nodes-imap;
+          checks = (lib.mapAttrs (_: pkg: pkg) config.packages) // {
             devShell = config.devShells.default;
           };
         };

@@ -21,39 +21,29 @@ describeIf("KagiClient integration", () => {
     await client.authenticate();
   });
 
-  it(
-    "parses search results from real Kagi HTML",
-    async () => {
-      const results = await client.search("what is the capital of France", 3);
+  it("parses search results from real Kagi HTML", async () => {
+    const results = await client.search("what is the capital of France", 3);
 
-      expect(results.length).toBeGreaterThan(0);
-      expect(results.length).toBeLessThanOrEqual(3);
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.length).toBeLessThanOrEqual(3);
 
-      for (const r of results) {
-        expect(r.title).toBeTruthy();
-        expect(r.url).toMatch(/^https?:\/\//);
-      }
-    },
-    30000,
-  );
+    for (const r of results) {
+      expect(r.title).toBeTruthy();
+      expect(r.url).toMatch(/^https?:\/\//);
+    }
+  }, 30000);
 
-  it(
-    "parses quick answer from real Kagi streaming response",
-    async () => {
-      const answer = await client.getQuickAnswer(
-        "what is the capital of France",
-      );
+  it("parses quick answer from real Kagi streaming response", async () => {
+    const answer = await client.getQuickAnswer("what is the capital of France");
 
-      expect(answer).not.toBeNull();
-      expect(answer!.markdown).toBeTruthy();
-      expect(answer!.markdown.toLowerCase()).toContain("paris");
-      expect(answer!.references.length).toBeGreaterThan(0);
-      for (const ref of answer!.references) {
-        expect(ref.title).toBeTruthy();
-        expect(ref.url).toMatch(/^https?:\/\//);
-        expect(ref.contribution).toMatch(/^\d+%$/);
-      }
-    },
-    30000,
-  );
+    expect(answer).not.toBeNull();
+    expect(answer!.markdown).toBeTruthy();
+    expect(answer!.markdown.toLowerCase()).toContain("paris");
+    expect(answer!.references.length).toBeGreaterThan(0);
+    for (const ref of answer!.references) {
+      expect(ref.title).toBeTruthy();
+      expect(ref.url).toMatch(/^https?:\/\//);
+      expect(ref.contribution).toMatch(/^\d+%$/);
+    }
+  }, 30000);
 });

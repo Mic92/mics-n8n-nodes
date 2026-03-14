@@ -17,6 +17,7 @@ export function createMockExecuteFunctions(
   opts?: {
     continueOnFail?: boolean;
     inputItems?: INodeExecutionData[];
+    helpers?: Record<string, unknown>;
   },
 ): IExecuteFunctions {
   return {
@@ -33,6 +34,7 @@ export function createMockExecuteFunctions(
         inputData: INodeExecutionData[],
         _opts: object,
       ) => inputData,
+      ...opts?.helpers,
     },
   } as unknown as IExecuteFunctions;
 }
