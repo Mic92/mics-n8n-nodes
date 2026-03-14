@@ -97,6 +97,11 @@
               pname = "n8n-nodes-imap";
               description = "n8n node to interact with IMAP mailboxes";
             };
+
+            n8n-nodes-github-notifications = mkN8nNode {
+              pname = "n8n-nodes-github-notifications";
+              description = "n8n node to list GitHub notifications";
+            };
           };
 
           devShells.default = pkgs.mkShell {
@@ -129,6 +134,7 @@
             n8n-nodes-nostr = config.packages.n8n-nodes-nostr;
             n8n-nodes-opencrow = config.packages.n8n-nodes-opencrow;
             n8n-nodes-imap = config.packages.n8n-nodes-imap;
+            n8n-nodes-github-notifications = config.packages.n8n-nodes-github-notifications;
             devShell = config.devShells.default;
           };
         };
