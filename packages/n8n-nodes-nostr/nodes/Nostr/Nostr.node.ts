@@ -1,4 +1,4 @@
-import { NodeOperationError } from "n8n-workflow";
+import { NodeConnectionTypes, NodeOperationError } from "n8n-workflow";
 
 import type {
   IExecuteFunctions,
@@ -116,11 +116,17 @@ async function publishProfile(
   },
   relays: string[],
 ): Promise<NostrEvent> {
-  const meta: Record<string, string> = {};
-  if (profile.name) meta["name"] = profile.name;
-  if (profile.displayName) meta["display_name"] = profile.displayName;
-  if (profile.about) meta["about"] = profile.about;
-  if (profile.picture) meta["picture"] = profile.picture;
+  const fieldMap: Record<string, string> = {
+    name: "name",
+    displayName: "display_name",
+    about: "about",
+    picture: "picture",
+  };
+  const meta = Object.fromEntries(
+    Object.entries(profile)
+      .filter(([, v]) => v)
+      .map(([k, v]) => [fieldMap[k], v]),
+  );
 
   const event = finalizeEvent(
     {
@@ -150,7 +156,7 @@ async function publishToRelays(
   for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
     if (attempt > 0) {
       const delay = Math.min(
-        retryConfig.baseDelayMs * Math.pow(2, attempt - 1),
+        retryConfig.baseDelayMs * 2 ** (attempt - 1),
         retryConfig.maxDelayMs,
       );
       await sleep(delay);
@@ -199,8 +205,9 @@ export class Nostr implements INodeType {
     defaults: {
       name: "Nostr",
     },
-    inputs: ["main"],
-    outputs: ["main"],
+    usableAsTool: true,
+    inputs: [NodeConnectionTypes.Main],
+    outputs: [NodeConnectionTypes.Main],
     credentials: [
       {
         name: "nostrApi",

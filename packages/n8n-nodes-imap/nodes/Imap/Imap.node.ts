@@ -1,4 +1,4 @@
-import { NodeOperationError } from "n8n-workflow";
+import { NodeConnectionTypes, NodeOperationError } from "n8n-workflow";
 
 import type {
   IExecuteFunctions,
@@ -31,8 +31,9 @@ export class Imap implements INodeType {
     defaults: {
       name: "IMAP",
     },
-    inputs: ["main"],
-    outputs: ["main"],
+    usableAsTool: true,
+    inputs: [NodeConnectionTypes.Main],
+    outputs: [NodeConnectionTypes.Main],
     credentials: [
       {
         name: "imapApi",
