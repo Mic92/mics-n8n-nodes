@@ -3,6 +3,7 @@ import {
   generateTestUid,
   generateISODateTime,
   createTestCalendar,
+  uniqueCalendar,
 } from "./helpers";
 import { CalDav } from "../CalDav.node";
 
@@ -150,7 +151,6 @@ function createMockExecuteFunctions(
         inputData: INodeExecutionData[],
         _options: { itemData: { item: number } },
       ) => {
-        // In tests, we don't need the metadata, just pass through the data
         return inputData;
       },
     } as IExecuteFunctions["helpers"],
@@ -178,14 +178,14 @@ describe("CalDAV Integration Tests", () => {
 
       expect(result).toBeDefined();
       expect(Array.isArray(result[0])).toBe(true);
-      // Radicale creates default calendars, so we should have at least something
     });
   });
 
   describe("Event Operations", () => {
     it("should create a basic event", async () => {
-      // Create unique calendar for this test
-      const testCalendarUrl = await createTestCalendar("basic-event-test");
+      const testCalendarUrl = await createTestCalendar(
+        uniqueCalendar("evt-create"),
+      );
 
       const uid = generateTestUid("event");
       const startTime = generateISODateTime(1);
@@ -221,7 +221,9 @@ describe("CalDAV Integration Tests", () => {
     });
 
     it("should create an all-day event", async () => {
-      const testCalendarUrl = await createTestCalendar("allday-event-test");
+      const testCalendarUrl = await createTestCalendar(
+        uniqueCalendar("evt-allday"),
+      );
 
       const uid = generateTestUid("allday-event");
       const today = new Date().toISOString().split("T")[0];
@@ -256,7 +258,9 @@ describe("CalDAV Integration Tests", () => {
     });
 
     it("should create a recurring event", async () => {
-      const testCalendarUrl = await createTestCalendar("recurring-event-test");
+      const testCalendarUrl = await createTestCalendar(
+        uniqueCalendar("evt-recurring"),
+      );
 
       const uid = generateTestUid("recurring-event");
       const startTime = generateISODateTime(1);
@@ -290,9 +294,10 @@ describe("CalDAV Integration Tests", () => {
     });
 
     it("should get all events from calendar", async () => {
-      const testCalendarUrl = await createTestCalendar("getall-events-test");
+      const testCalendarUrl = await createTestCalendar(
+        uniqueCalendar("evt-getall"),
+      );
 
-      // Create some test events first
       await createTestEvent(caldavNode, testCalendarUrl, {
         summary: "Event 1",
       });
@@ -314,19 +319,18 @@ describe("CalDAV Integration Tests", () => {
 
       expect(result).toBeDefined();
       expect(Array.isArray(result[0])).toBe(true);
-      // Should have at least the events we created
       expect(result[0].length).toBeGreaterThanOrEqual(2);
     });
 
     it("should update an event", async () => {
-      const testCalendarUrl = await createTestCalendar("update-event-test");
+      const testCalendarUrl = await createTestCalendar(
+        uniqueCalendar("evt-update"),
+      );
 
-      // Create an event using fixture
       const eventUrl = await createTestEvent(caldavNode, testCalendarUrl, {
         summary: "Event to Update",
       });
 
-      // Get the event to extract its etag and times
       const getResult = await caldavNode.execute.call(
         createMockExecuteFunctions({
           resource: "event",
@@ -336,7 +340,6 @@ describe("CalDAV Integration Tests", () => {
       );
       const existingEvent = getResult[0][0].json;
 
-      // Now update it
       const mockFunctions = createMockExecuteFunctions({
         resource: "event",
         operation: "update",
@@ -361,14 +364,14 @@ describe("CalDAV Integration Tests", () => {
     });
 
     it("should delete an event", async () => {
-      const testCalendarUrl = await createTestCalendar("delete-event-test");
+      const testCalendarUrl = await createTestCalendar(
+        uniqueCalendar("evt-delete"),
+      );
 
-      // Create an event using fixture
       const eventUrl = await createTestEvent(caldavNode, testCalendarUrl, {
         summary: "Event to Delete",
       });
 
-      // Now delete it
       const mockFunctions = createMockExecuteFunctions({
         resource: "event",
         operation: "delete",
@@ -386,7 +389,9 @@ describe("CalDAV Integration Tests", () => {
 
   describe("Todo Operations", () => {
     it("should create a todo", async () => {
-      const testCalendarUrl = await createTestCalendar("create-todo-test");
+      const testCalendarUrl = await createTestCalendar(
+        uniqueCalendar("todo-create"),
+      );
 
       const uid = generateTestUid("todo");
 
@@ -418,14 +423,14 @@ describe("CalDAV Integration Tests", () => {
     });
 
     it("should update a todo", async () => {
-      const testCalendarUrl = await createTestCalendar("update-todo-test");
+      const testCalendarUrl = await createTestCalendar(
+        uniqueCalendar("todo-update"),
+      );
 
-      // Create a todo using fixture
       const todoUrl = await createTestTodo(caldavNode, testCalendarUrl, {
         summary: "Todo to Update",
       });
 
-      // Get the todo to extract its etag
       const getResult = await caldavNode.execute.call(
         createMockExecuteFunctions({
           resource: "todo",
@@ -457,14 +462,14 @@ describe("CalDAV Integration Tests", () => {
     });
 
     it("should complete a todo", async () => {
-      const testCalendarUrl = await createTestCalendar("complete-todo-test");
+      const testCalendarUrl = await createTestCalendar(
+        uniqueCalendar("todo-complete"),
+      );
 
-      // Create a todo using fixture
       const todoUrl = await createTestTodo(caldavNode, testCalendarUrl, {
         summary: "Todo to Complete",
       });
 
-      // Get the todo to extract its etag
       const getResult = await caldavNode.execute.call(
         createMockExecuteFunctions({
           resource: "todo",
@@ -497,9 +502,10 @@ describe("CalDAV Integration Tests", () => {
     });
 
     it("should delete a todo", async () => {
-      const testCalendarUrl = await createTestCalendar("delete-todo-test");
+      const testCalendarUrl = await createTestCalendar(
+        uniqueCalendar("todo-delete"),
+      );
 
-      // Create a todo using fixture
       const todoUrl = await createTestTodo(caldavNode, testCalendarUrl, {
         summary: "Todo to Delete",
       });

@@ -20,6 +20,11 @@ export function generateISODateTime(hoursFromNow: number = 0): string {
   return date.toISOString();
 }
 
+/** Generate a unique calendar name to avoid cross-run pollution. */
+export function uniqueCalendar(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
 /**
  * Create a unique test calendar via MKCALENDAR.
  * Expects Radicale to be running (started by jest globalSetup).
