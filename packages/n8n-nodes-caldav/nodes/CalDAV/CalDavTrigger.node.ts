@@ -1,4 +1,4 @@
-import { NodeOperationError } from "n8n-workflow";
+import { NodeConnectionTypes, NodeOperationError } from "n8n-workflow";
 
 import {
   getCalDavClient,
@@ -26,7 +26,7 @@ export class CalDavTrigger implements INodeType {
       name: "CalDAV Trigger",
     },
     inputs: [],
-    outputs: ["main"],
+    outputs: [NodeConnectionTypes.Main],
     credentials: [
       {
         name: "calDavApi",
@@ -244,17 +244,17 @@ export class CalDavTrigger implements INodeType {
       if (triggerOn === "eventCreated" || triggerOn === "eventUpdated") {
         // Update stored ETags for all current events
         // This ensures we track both new and updated events
-        events.forEach((event) => {
+        for (const event of events) {
           knownEvents[event.uid] = event.etag || "";
-        });
+        }
 
         // Clean up deleted events to prevent unbounded storage growth
         const currentUids = new Set(events.map((e) => e.uid));
-        Object.keys(knownEvents).forEach((uid) => {
+        for (const uid of Object.keys(knownEvents)) {
           if (!currentUids.has(uid)) {
             delete knownEvents[uid];
           }
-        });
+        }
       }
 
       // Update last check time
