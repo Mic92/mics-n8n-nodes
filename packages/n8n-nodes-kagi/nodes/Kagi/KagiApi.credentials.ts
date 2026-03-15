@@ -16,7 +16,7 @@ export class KagiApi implements ICredentialType {
       required: true,
       placeholder: "aBcDe123xyz.a1b2c3d4e5f6g7h8i9j0kLmNoPqRsTuVwXyZ",
       description:
-        'The token from your Kagi Session Link. Go to <a href="https://kagi.com/settings?p=user_details">Settings → Account → Session Link</a>, copy the link, and paste just the token value (the part after "?token=").',
+        'Your Kagi Session Link or token. Go to <a href="https://kagi.com/settings?p=user_details">Settings → Account → Session Link</a> and paste the full URL or just the token value (the part after "?token=").',
     },
   ];
 }

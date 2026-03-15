@@ -29,6 +29,23 @@ interface HttpResponse {
 }
 
 /**
+ * Extract the session token from a raw credential value.
+ * Accepts either a bare token or a full session link URL
+ * (e.g. "https://kagi.com/search?token=TOKEN").
+ */
+export function extractSessionToken(raw: string): string {
+  const trimmed = raw.trim();
+  try {
+    const url = new URL(trimmed);
+    const token = url.searchParams.get("token");
+    if (token) return token;
+  } catch {
+    // Not a URL — treat as bare token
+  }
+  return trimmed;
+}
+
+/**
  * Kagi search client using session token authentication.
  * Scrapes the HTML search interface to avoid API credits.
  */
@@ -38,7 +55,9 @@ export class KagiClient {
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
   private cookies: Map<string, string> = new Map();
 
-  constructor(private sessionToken: string) {}
+  constructor(private sessionToken: string) {
+    this.sessionToken = extractSessionToken(sessionToken);
+  }
 
   /**
    * Authenticate with Kagi using the session token.

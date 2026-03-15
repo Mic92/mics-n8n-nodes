@@ -10,7 +10,7 @@ import type {
   INodeTypeDescription,
 } from "n8n-workflow";
 
-import { KagiClient } from "./KagiClient";
+import { KagiClient, extractSessionToken } from "./KagiClient";
 
 export class Kagi implements INodeType {
   description: INodeTypeDescription = {
@@ -89,18 +89,19 @@ export class Kagi implements INodeType {
         this: ICredentialTestFunctions,
         credential: ICredentialsDecrypted,
       ): Promise<INodeCredentialTestResult> {
-        const sessionToken = credential.data?.sessionToken as string;
-        if (!sessionToken) {
+        const raw = credential.data?.sessionToken as string;
+        if (!raw) {
           return {
             status: "Error",
             message: "Session token is required",
           };
         }
 
+        const token = extractSessionToken(raw);
         try {
           const response = (await this.helpers.request({
             method: "GET",
-            uri: `https://kagi.com/html/search?token=${encodeURIComponent(sessionToken)}`,
+            uri: `https://kagi.com/html/search?token=${encodeURIComponent(token)}`,
             followRedirect: false,
             resolveWithFullResponse: true,
             simple: false,
@@ -130,15 +131,15 @@ export class Kagi implements INodeType {
     const returnData: INodeExecutionData[] = [];
     const credentials = await this.getCredentials("kagiApi");
 
-    const sessionToken = credentials.sessionToken as string;
-    if (!sessionToken) {
+    const raw = credentials.sessionToken as string;
+    if (!raw) {
       throw new NodeOperationError(
         this.getNode(),
         "Kagi session token is required",
       );
     }
 
-    const client = new KagiClient(sessionToken);
+    const client = new KagiClient(extractSessionToken(raw));
     await client.authenticate();
 
     for (let i = 0; i < items.length; i++) {
