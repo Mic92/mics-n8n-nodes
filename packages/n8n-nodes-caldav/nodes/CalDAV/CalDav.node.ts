@@ -1,4 +1,4 @@
-import { NodeOperationError } from "n8n-workflow";
+import { NodeConnectionTypes, NodeOperationError } from "n8n-workflow";
 
 import { calendarFields, calendarOperations } from "./CalendarDescription";
 import { eventFields, eventOperations } from "./EventDescription";
@@ -36,8 +36,9 @@ export class CalDav implements INodeType {
     defaults: {
       name: "CalDAV",
     },
-    inputs: ["main"],
-    outputs: ["main"],
+    usableAsTool: true,
+    inputs: [NodeConnectionTypes.Main],
+    outputs: [NodeConnectionTypes.Main],
     credentials: [
       {
         name: "calDavApi",
@@ -143,7 +144,7 @@ export class CalDav implements INodeType {
             );
             const uid =
               (additionalFields.uid as string) ||
-              `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@n8n-caldav`;
+              `${Date.now()}-${Math.random().toString(36).substring(2, 11)}@n8n-caldav`;
             const filename = generateFilename(uid);
 
             const credentials = await this.getCredentials("calDavApi");
@@ -492,7 +493,7 @@ export class CalDav implements INodeType {
             const iCalString = todoToICalendar(summary, additionalFields);
             const uid =
               (additionalFields.uid as string) ||
-              `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@n8n-caldav`;
+              `${Date.now()}-${Math.random().toString(36).substring(2, 11)}@n8n-caldav`;
             const filename = generateFilename(uid);
 
             const credentials = await this.getCredentials("calDavApi");

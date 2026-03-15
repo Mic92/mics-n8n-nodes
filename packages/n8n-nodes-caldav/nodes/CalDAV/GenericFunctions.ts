@@ -159,7 +159,7 @@ export function eventToICalendar(
   // UID - required unique identifier
   const uid =
     (additionalFields.uid as string) ||
-    `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@n8n-caldav`;
+    `${Date.now()}-${Math.random().toString(36).substring(2, 11)}@n8n-caldav`;
   vevent.updatePropertyWithValue("uid", uid);
 
   // Summary (title)
@@ -213,13 +213,13 @@ export function eventToICalendar(
       .split(",")
       .map((e) => e.trim())
       .filter((e) => e.length > 0);
-    attendeesList.forEach((email) => {
+    for (const email of attendeesList) {
       const attendee = vevent.addPropertyWithValue(
         "attendee",
         `mailto:${email}`,
       );
       attendee.setParameter("rsvp", "TRUE");
-    });
+    }
   }
 
   // Created/Modified timestamps
@@ -248,7 +248,7 @@ export function todoToICalendar(
   // UID - required
   const uid =
     (additionalFields.uid as string) ||
-    `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@n8n-caldav`;
+    `${Date.now()}-${Math.random().toString(36).substring(2, 11)}@n8n-caldav`;
   vtodo.updatePropertyWithValue("uid", uid);
 
   // Summary (title)
