@@ -6,15 +6,14 @@
 
 ## Quick Start
 
-1. Install the node (see [Installation](#installation) below)
-2. Add your calendar credentials (see [Setup Guide](#setup-guide))
-3. Start automating! ✨
+1. Add your calendar credentials (see [Setup Guide](#setup-guide))
+2. Start automating! ✨
 
 ## What You Can Do
 
 ### 📅 Manage Your Calendar
 
-- List all your calendars
+- Get all your calendars
 - Create, view, update, and delete events
 - Create and manage todos/tasks
 - Add attendees to events
@@ -25,6 +24,7 @@
 - Get notified when someone creates a new event
 - React when events are updated or rescheduled
 - Trigger workflows when events start (great for reminders!)
+- Set a "minutes before" offset to trigger ahead of event start times
 - Works perfectly with recurring events - each occurrence triggers separately
 
 ### 🔗 Works With Your Favorite Calendar Apps
@@ -34,29 +34,6 @@
 - ✅ Google Calendar (via CalDAV)
 - ✅ Radicale
 - ✅ Any CalDAV-compatible calendar server
-
-## Installation
-
-### Manual Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/Mic92/n8n-nodes-caldav.git
-cd n8n-nodes-caldav
-
-# Install dependencies
-npm install
-
-# Build the node
-npm run build
-
-# Link to your n8n installation
-npm link
-cd ~/.n8n/custom
-npm link n8n-nodes-caldav
-```
-
-After linking, restart n8n and the CalDAV nodes will be available in your node palette.
 
 ## Setup Guide
 
@@ -96,33 +73,38 @@ After installing the node, you'll need to connect it to your calendar:
 
 ### Working with Calendars
 
-- **List Calendars**: See all your available calendars
+- **Get All**: Get all your available calendars with details like URL, display name, description, timezone, and sync tokens
 
 ### Working with Events
 
-- **Create Event**: Add a new event to your calendar
+- **Create**: Add a new event to your calendar
   - Set title, start/end times, location, description
-  - Add attendees by email
-  - Create recurring events (daily, weekly, monthly, etc.)
-- **Get Event**: Retrieve a specific event
-- **Get All Events**: Fetch all events from a calendar
-  - Optional: Filter by date range to get only upcoming events
-- **Update Event**: Modify an existing event
-- **Delete Event**: Remove an event from your calendar
+  - Add attendees by email (comma-separated)
+  - Create recurring events with RRULE syntax (daily, weekly, monthly, etc.)
+  - Mark as all-day event
+- **Get**: Retrieve a specific event by its URL
+- **Get All**: Fetch all events from a calendar
+  - Optional: Filter by date range (time range start/end)
+  - Optional: Expand recurring events into individual occurrences
+- **Update**: Modify an existing event (requires event URL and ETag for conflict detection)
+- **Delete**: Remove an event from your calendar
 
 ### Working with Todos
 
-- **Create Todo**: Add a new task to your calendar
-- **Get Todo**: Retrieve a specific todo
-- **Get All Todos**: Fetch all tasks from a calendar
-- **Update Todo**: Modify an existing todo (change status, priority, etc.)
-- **Delete Todo**: Remove a todo from your calendar
+- **Create**: Add a new task to your calendar
+  - Set title, description, due date, priority, and status
+  - Mark as completed
+- **Get**: Retrieve a specific todo by its URL
+- **Get All**: Fetch all tasks from a calendar
+  - Optional: Filter by status (Needs Action, In Progress, Completed, Cancelled)
+- **Update**: Modify an existing todo (requires todo URL and ETag for conflict detection)
+- **Delete**: Remove a todo from your calendar
 
 ### Triggers (Start Workflows Automatically)
 
 The CalDAV Trigger node watches your calendar and starts workflows when things happen:
 
-- **Event Created**: Triggers when someone creates a new event
+- **Event Created**: Triggers when a new event is created
   - Great for: Sending welcome emails to meeting attendees, logging new bookings
 
 - **Event Updated**: Triggers when someone changes an event
@@ -130,6 +112,7 @@ The CalDAV Trigger node watches your calendar and starts workflows when things h
 
 - **Event Started**: Triggers when an event begins
   - Great for: Sending meeting reminders, starting Zoom calls, posting to Slack
+  - **Minutes Before**: Configure a lead time to trigger X minutes before the event starts (0 = trigger exactly at start time)
   - **Bonus**: For recurring events (like "Daily Standup"), this triggers for each occurrence
 
 ## Real-World Examples
@@ -160,10 +143,10 @@ Send email with your schedule
 
 ### 🔔 Smart Meeting Reminders
 
-Get reminded when any meeting starts (works great with recurring meetings!):
+Get reminded before any meeting starts (works great with recurring meetings!):
 
 ```
-CalDAV Trigger: Event Started
+CalDAV Trigger: Event Started (Minutes Before: 5)
   ↓
 Send SMS/Slack message
 ```
@@ -198,7 +181,7 @@ You can create events that repeat automatically! Here are some examples:
 
 ### Common Recurring Event Patterns
 
-When creating an event, use the "Recurrence Rule" field:
+When creating an event, use the "Recurrence Rule (RRULE)" field:
 
 - **Daily standup for 10 days**: `FREQ=DAILY;COUNT=10`
 - **Weekly team meeting (every Monday)**: `FREQ=WEEKLY;BYDAY=MO`
@@ -212,7 +195,7 @@ When creating an event, use the "Recurrence Rule" field:
 - **Event Created/Updated triggers**: Get notified once when you create or modify the series
   - Example: When you create "Weekly Team Meeting", you get 1 trigger
 
-- **Event Started trigger**: Get notified for each occurrence
+- **Event Started trigger**: Get notified for each occurrence (recurring events are expanded)
   - Example: "Weekly Team Meeting" triggers every Monday
   - Perfect for sending reminders or starting Zoom calls automatically!
 
@@ -230,7 +213,7 @@ Make sure you're using the correct server URL for your calendar provider (see Se
 
 ### Events not showing up
 
-- Try using "Get All Events" without filters first to see if events are being retrieved
+- Try using "Get All" without filters first to see if events are being retrieved
 - Check that you're looking at the correct calendar
 - For time-range filters, make sure your dates are in the correct format
 
@@ -240,34 +223,9 @@ Make sure you're using the correct server URL for your calendar provider (see Se
 - Make sure the calendar URL in your trigger matches exactly
 - For "Event Started" triggers, the event must start within the polling interval
 
-## Version Requirements
-
-- **n8n**: 1.0.0 or higher
-- **Node.js**: 18.x or higher
-
-## For Developers
-
-Want to contribute or modify this node?
-
-```bash
-# Install dependencies
-npm install
-
-# Build the node
-npm run build
-
-# Run tests
-npm test
-
-# Auto-compile on changes
-npm run dev
-```
-
-See our [contribution guidelines](CONTRIBUTING.md) for more details.
-
 ## License
 
-[MIT](LICENSE.md) - Free to use and modify!
+MIT - Free to use and modify!
 
 ## Credits
 
@@ -276,4 +234,4 @@ This node is built with:
 - [tsdav](https://github.com/natelindev/tsdav) - CalDAV client library
 - [ical.js](https://github.com/kewisch/ical.js) - Calendar event parser
 
-Thanks to all [contributors](https://github.com/Mic92/n8n-nodes-caldav/graphs/contributors)!
+Thanks to all [contributors](https://github.com/Mic92/n8n-nodes-opencrow/graphs/contributors)!
