@@ -1,8 +1,23 @@
+// CalDAV tests live in packages/n8n-nodes-caldav/jest.config.js because
+// they need globalSetup/globalTeardown for Radicale.  Jest validates
+// globalSetup paths at startup even with --selectProjects, so keeping
+// them here would break nix builds of other packages (where the caldav
+// source tree is absent from the sandbox).
+//
+// Run CalDAV tests via:
+//   npx jest --config packages/n8n-nodes-caldav/jest.config.js
+// Run everything:
+//   npx jest && npx jest --config packages/n8n-nodes-caldav/jest.config.js
+
 module.exports = {
   preset: "ts-jest",
   testEnvironment: "node",
-  testMatch: ["**/*.test.ts"],
-  testPathIgnorePatterns: ["/node_modules/", "/dist/"],
+  testMatch: ["<rootDir>/packages/**/*.test.ts"],
+  testPathIgnorePatterns: [
+    "/node_modules/",
+    "/dist/",
+    "/packages/n8n-nodes-caldav/",
+  ],
   collectCoverageFrom: ["packages/**/nodes/**/*.ts"],
   coveragePathIgnorePatterns: ["/node_modules/", "/dist/", "/test/"],
   transform: {
@@ -29,5 +44,4 @@ module.exports = {
   },
   transformIgnorePatterns: ["node_modules/(?!nostr-tools|@noble|@scure)"],
   testTimeout: 10000,
-  verbose: true,
 };

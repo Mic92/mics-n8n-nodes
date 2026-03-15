@@ -1,0 +1,43 @@
+{
+  "name": "n8n-nodes-caldav",
+  "version": "1.0.0",
+  "description": "n8n node for CalDAV integration with support for Nextcloud, iCloud, Radicale, and other CalDAV servers",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "caldav",
+    "calendar",
+    "nextcloud",
+    "icloud",
+    "radicale"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "Jörg Thalheim",
+    "email": "joerg@thalheim.io"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/CalDavApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/CalDAV/CalDav.node.js",
+      "dist/nodes/CalDAV/CalDavTrigger.node.js"
+    ]
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  },
+  "dependencies": {
+    "ical.js": "^2.0.1",
+    "tsdav": "^2.1.8"
+  }
+}
