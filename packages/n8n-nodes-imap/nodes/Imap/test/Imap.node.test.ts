@@ -20,13 +20,13 @@ const mockedMove = jest.mocked(imapMove);
 const mockedList = jest.mocked(imapList);
 
 const CREDS = {
-  imapApi: {
+  imap: {
     host: "mail.example.com",
     port: 993,
     user: "alice",
     password: "secret",
-    tls: true,
-    rejectUnauthorized: true,
+    secure: true,
+    allowUnauthorizedCerts: false,
   },
 };
 

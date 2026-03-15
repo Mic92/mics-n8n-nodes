@@ -23,9 +23,7 @@
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,
-    "credentials": [
-      "dist/credentials/ImapApi.credentials.js"
-    ],
+    "credentials": [],
     "nodes": [
       "dist/nodes/Imap/Imap.node.js"
     ]

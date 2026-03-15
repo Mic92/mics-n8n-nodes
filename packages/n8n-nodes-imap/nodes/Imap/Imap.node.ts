@@ -8,15 +8,19 @@ import type {
   IDataObject,
 } from "n8n-workflow";
 
+import type { ImapConnectOptions } from "./imap";
 import { imapAppend, imapMove, imapList } from "./imap";
 
-interface ImapCredentials {
-  host: string;
-  port: number;
-  user: string;
-  password: string;
-  tls: boolean;
-  rejectUnauthorized: boolean;
+/** Map upstream n8n `imap` credential fields to ImapConnectOptions. */
+function credentialsToConnectOptions(raw: IDataObject): ImapConnectOptions {
+  return {
+    host: raw.host as string,
+    port: raw.port as number,
+    user: raw.user as string,
+    password: raw.password as string,
+    tls: raw.secure as boolean,
+    rejectUnauthorized: !(raw.allowUnauthorizedCerts as boolean),
+  };
 }
 
 export class Imap implements INodeType {
@@ -36,7 +40,7 @@ export class Imap implements INodeType {
     outputs: [NodeConnectionTypes.Main],
     credentials: [
       {
-        name: "imapApi",
+        name: "imap",
         required: true,
       },
     ],
@@ -215,16 +219,8 @@ export class Imap implements INodeType {
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
-    const credentials = await this.getCredentials("imapApi");
-
-    const creds: ImapCredentials = {
-      host: credentials.host as string,
-      port: credentials.port as number,
-      user: credentials.user as string,
-      password: credentials.password as string,
-      tls: credentials.tls as boolean,
-      rejectUnauthorized: credentials.rejectUnauthorized as boolean,
-    };
+    const credentials = await this.getCredentials("imap");
+    const creds = credentialsToConnectOptions(credentials);
 
     if (!creds.host) {
       throw new NodeOperationError(
@@ -285,7 +281,7 @@ async function executeAppend(
   ctx: IExecuteFunctions,
   itemIndex: number,
   items: INodeExecutionData[],
-  creds: ImapCredentials,
+  creds: ImapConnectOptions,
 ): Promise<IDataObject> {
   const folder = ctx.getNodeParameter("folder", itemIndex) as string;
   const messageSource = ctx.getNodeParameter(
@@ -341,7 +337,7 @@ async function executeAppend(
 async function executeMove(
   ctx: IExecuteFunctions,
   itemIndex: number,
-  creds: ImapCredentials,
+  creds: ImapConnectOptions,
 ): Promise<IDataObject> {
   const sourceFolder = ctx.getNodeParameter(
     "sourceFolder",
@@ -366,7 +362,7 @@ async function executeMove(
 async function executeList(
   ctx: IExecuteFunctions,
   itemIndex: number,
-  creds: ImapCredentials,
+  creds: ImapConnectOptions,
 ): Promise<IDataObject[]> {
   const reference = ctx.getNodeParameter("reference", itemIndex, "") as string;
   const pattern = ctx.getNodeParameter("pattern", itemIndex, "*") as string;
