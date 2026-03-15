@@ -1,13 +1,16 @@
 import { NodeConnectionTypes, NodeOperationError } from "n8n-workflow";
 
 import type {
+  ICredentialTestFunctions,
+  ICredentialsDecrypted,
   IExecuteFunctions,
+  INodeCredentialTestResult,
   INodeExecutionData,
   INodeType,
   INodeTypeDescription,
 } from "n8n-workflow";
 
-import { KagiClient } from "./KagiClient";
+import { KagiClient, extractSessionToken } from "./KagiClient";
 
 export class Kagi implements INodeType {
   description: INodeTypeDescription = {
@@ -30,6 +33,7 @@ export class Kagi implements INodeType {
       {
         name: "kagiApi",
         required: true,
+        testedBy: "kagiApiTest",
       },
     ],
     properties: [
@@ -79,20 +83,63 @@ export class Kagi implements INodeType {
     ],
   };
 
+  methods = {
+    credentialTest: {
+      async kagiApiTest(
+        this: ICredentialTestFunctions,
+        credential: ICredentialsDecrypted,
+      ): Promise<INodeCredentialTestResult> {
+        const raw = credential.data?.sessionToken as string;
+        if (!raw) {
+          return {
+            status: "Error",
+            message: "Session token is required",
+          };
+        }
+
+        const token = extractSessionToken(raw);
+        try {
+          const response = (await this.helpers.request({
+            method: "GET",
+            uri: `https://kagi.com/html/search?token=${encodeURIComponent(token)}`,
+            followRedirect: false,
+            resolveWithFullResponse: true,
+            simple: false,
+          })) as { statusCode: number; headers: Record<string, string> };
+
+          const location = response.headers?.location ?? "";
+          if (location.includes("/signin") || location.includes("/welcome")) {
+            return {
+              status: "Error",
+              message:
+                "Invalid session token. Go to Kagi Settings → Account → Session Link to get a valid token.",
+            };
+          }
+
+          return { status: "OK", message: "Connection successful" };
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          return { status: "Error", message };
+        }
+      },
+    },
+  };
+
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
     const credentials = await this.getCredentials("kagiApi");
 
-    const sessionToken = credentials.sessionToken as string;
-    if (!sessionToken) {
+    const raw = credentials.sessionToken as string;
+    if (!raw) {
       throw new NodeOperationError(
         this.getNode(),
         "Kagi session token is required",
       );
     }
 
-    const client = new KagiClient(sessionToken);
+    const client = new KagiClient(extractSessionToken(raw));
     await client.authenticate();
 
     for (let i = 0; i < items.length; i++) {
