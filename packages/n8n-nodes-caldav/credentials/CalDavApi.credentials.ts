@@ -1,4 +1,4 @@
-import type { ICredentialType, INodeProperties } from "n8n-workflow";
+import type { ICredentialType, INodeProperties, Icon } from "n8n-workflow";
 
 export class CalDavApi implements ICredentialType {
   name = "calDavApi";
@@ -6,6 +6,8 @@ export class CalDavApi implements ICredentialType {
   displayName = "CalDAV API";
 
   documentationUrl = "caldav";
+
+  icon: Icon = "file:../nodes/CalDAV/caldav.svg";
 
   properties: INodeProperties[] = [
     {

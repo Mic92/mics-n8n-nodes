@@ -1,8 +1,9 @@
-import type { ICredentialType, INodeProperties } from "n8n-workflow";
+import type { ICredentialType, INodeProperties, Icon } from "n8n-workflow";
 
 export class NostrApi implements ICredentialType {
   name = "nostrApi";
   displayName = "Nostr";
+  icon: Icon = "file:../nodes/Nostr/nostr.svg";
   properties: INodeProperties[] = [
     {
       displayName: "Private Key (nsec or hex)",
