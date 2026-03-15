@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" width="60" height="60">
+  <!-- Crow silhouette -->
+  <ellipse cx="28" cy="30" rx="16" ry="14" fill="#1a1a2e"/>
+  <!-- Head -->
+  <circle cx="40" cy="20" r="9" fill="#1a1a2e"/>
+  <!-- Beak -->
+  <polygon points="48,19 56,21 48,23" fill="#E67E22"/>
+  <!-- Eye -->
+  <circle cx="43" cy="18" r="2.5" fill="#fff"/>
+  <circle cx="43.5" cy="17.5" r="1.2" fill="#1a1a2e"/>
+  <!-- Tail -->
+  <polygon points="10,26 4,20 6,30 4,38 12,34" fill="#1a1a2e"/>
+  <!-- Legs -->
+  <line x1="24" y1="42" x2="22" y2="52" stroke="#E67E22" stroke-width="2" stroke-linecap="round"/>
+  <line x1="32" y1="42" x2="34" y2="52" stroke="#E67E22" stroke-width="2" stroke-linecap="round"/>
+  <line x1="22" y1="52" x2="18" y2="52" stroke="#E67E22" stroke-width="2" stroke-linecap="round"/>
+  <line x1="34" y1="52" x2="38" y2="52" stroke="#E67E22" stroke-width="2" stroke-linecap="round"/>
+</svg>

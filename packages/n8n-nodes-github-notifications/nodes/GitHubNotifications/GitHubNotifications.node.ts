@@ -12,7 +12,7 @@ export class GitHubNotifications implements INodeType {
   description: INodeTypeDescription = {
     displayName: "GitHub Notifications",
     name: "gitHubNotifications",
-    icon: "fa:bell",
+    icon: "file:github-notifications.svg",
     group: ["output"],
     version: 1,
     subtitle: "List Notifications",

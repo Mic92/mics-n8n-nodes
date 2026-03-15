@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" width="60" height="60">
+  <!-- Nostr purple theme -->
+  <circle cx="30" cy="30" r="26" fill="#8B5CF6"/>
+  <!-- Stylized relay/hash symbol -->
+  <line x1="20" y1="22" x2="40" y2="22" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+  <line x1="20" y1="38" x2="40" y2="38" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+  <line x1="24" y1="16" x2="22" y2="44" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+  <line x1="38" y1="16" x2="36" y2="44" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+</svg>
