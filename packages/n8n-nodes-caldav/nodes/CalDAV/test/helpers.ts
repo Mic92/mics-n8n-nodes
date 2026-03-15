@@ -105,6 +105,7 @@ export async function createEvent(
   start: Date,
   end: Date,
   rrule?: string,
+  status?: string,
 ): Promise<void> {
   const client = await createDAVClient({
     serverUrl,
@@ -114,6 +115,7 @@ export async function createEvent(
   });
 
   const rruleLine = rrule ? `RRULE:${rrule}\n` : "";
+  const statusLine = status ? `STATUS:${status}\n` : "";
   const ical = `BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//n8n//CalDAV Node Test//EN
@@ -128,7 +130,7 @@ DTEND:${end
     .toISOString()
     .replace(/[-:]/g, "")
     .replace(/\.\d{3}/, "")}
-${rruleLine}END:VEVENT
+${rruleLine}${statusLine}END:VEVENT
 END:VCALENDAR`;
 
   await client.createCalendarObject({

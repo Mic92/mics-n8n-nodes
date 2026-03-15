@@ -495,6 +495,55 @@ describe("CalDavTrigger Integration Tests", () => {
     });
   });
 
+  describe("Cancelled Events", () => {
+    it("should skip cancelled events but keep confirmed and tentative", async () => {
+      const testCalendarUrl = await createTestCalendar(
+        uniqueCalendar("cancelled-mix"),
+      );
+
+      const staticData: IDataObject = {};
+
+      for (const [status, summary] of [
+        ["CONFIRMED", "Confirmed Meeting"],
+        ["TENTATIVE", "Tentative Meeting"],
+        ["CANCELLED", "Cancelled Meeting"],
+      ] as const) {
+        await createEvent(
+          testCalendarUrl,
+          TEST_CREDENTIALS.calDavApi.username,
+          TEST_CREDENTIALS.calDavApi.password,
+          TEST_CREDENTIALS.calDavApi.serverUrl,
+          generateTestUid(status.toLowerCase()),
+          summary,
+          new Date(Date.now() + 3600_000),
+          new Date(Date.now() + 7200_000),
+          undefined,
+          status,
+        );
+      }
+
+      const mockFunctions = createMockPollFunctions(
+        {
+          calendar: {
+            __rl: true,
+            mode: "url",
+            value: testCalendarUrl,
+          },
+          triggerOn: "eventCreated",
+        },
+        staticData,
+      );
+
+      const result = await triggerNode.poll.call(mockFunctions);
+      expect(result).toBeDefined();
+      if (!result) throw new Error("Result is null");
+      expect(result[0]).toHaveLength(2);
+
+      const summaries = result[0].map((r) => r.json.summary).sort();
+      expect(summaries).toEqual(["Confirmed Meeting", "Tentative Meeting"]);
+    });
+  });
+
   describe("ETag Cleanup", () => {
     it("should clean up ETags for deleted events", async () => {
       const testCalendarUrl = await createTestCalendar(

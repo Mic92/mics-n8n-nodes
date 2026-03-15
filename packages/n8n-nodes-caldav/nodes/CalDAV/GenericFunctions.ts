@@ -358,6 +358,11 @@ export function iCalendarToEvent(
       event.rrule = rrule.toString();
     }
 
+    const status = vevent.getFirstPropertyValue("status");
+    if (status && typeof status === "string") {
+      event.status = status;
+    }
+
     // Attendees
     const attendees = vevent.getAllProperties("attendee");
     if (attendees.length > 0) {

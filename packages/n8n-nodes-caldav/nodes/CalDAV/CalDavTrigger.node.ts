@@ -206,24 +206,33 @@ export class CalDavTrigger implements INodeType {
         })
         .filter((event) => event !== null);
 
+      // Cancelled events should never fire triggers — filter them out
+      // before any trigger-specific logic so the behaviour is consistent
+      // across eventCreated, eventUpdated and eventStarted.
+      const activeEvents = events.filter(
+        (event) => event.status !== "CANCELLED",
+      );
+
       // Filter events based on trigger type
-      let filteredEvents = events;
+      let filteredEvents = activeEvents;
 
       if (triggerOn === "eventStarted") {
         // Filter events whose trigger time falls between lastTimeChecked and now
         // Trigger time = start time - offset
-        filteredEvents = events.filter((event) => {
+        filteredEvents = activeEvents.filter((event) => {
           const startTime = new Date(event.start);
           const triggerTime = new Date(startTime.getTime() - offsetMs);
           return triggerTime >= lastTimeChecked && triggerTime <= now;
         });
       } else if (triggerOn === "eventCreated") {
         // New events don't have stored ETags
-        filteredEvents = events.filter((event) => !knownEvents[event.uid]);
+        filteredEvents = activeEvents.filter(
+          (event) => !knownEvents[event.uid],
+        );
       } else if (triggerOn === "eventUpdated") {
         // Updated events have different ETags than stored ones
         // Only include events we've seen before (not new ones)
-        filteredEvents = events.filter((event) => {
+        filteredEvents = activeEvents.filter((event) => {
           const oldEtag = knownEvents[event.uid];
           return oldEtag && oldEtag !== event.etag;
         });

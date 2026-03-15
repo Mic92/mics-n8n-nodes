@@ -15,6 +15,7 @@ export interface IEvent extends IDataObject {
   description?: string;
   location?: string;
   rrule?: string;
+  status?: string;
   attendees?: string[];
   url?: string;
   etag?: string;
