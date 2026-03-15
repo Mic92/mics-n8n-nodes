@@ -25,14 +25,17 @@ inputs.mics-n8n-nodes.url = "github:Mic92/mics-n8n-nodes";
 
 # In your n8n module:
 let
-  micsNodes = mics-n8n-nodes.packages.${system};
+  micsNodes = mics-n8n-nodes.packages.${pkgs.stdenv.hostPlatform.system};
+  linkCommands = pkgs.lib.concatStringsSep "\n" (
+    pkgs.lib.mapAttrsToList (
+      name: pkg: "ln -sfn ${pkg}/lib/node_modules/${name}/dist /var/lib/n8n/.n8n/custom/${name}"
+    ) micsNodes
+  );
 in {
-  # Symlink individual nodes into n8n's custom directory
-  # Each package installs to lib/node_modules/<name>/dist
-  preStart = ''
+  # Symlink all nodes into n8n's custom directory
+  systemd.services.n8n.preStart = ''
     mkdir -p /var/lib/n8n/.n8n/custom
-    ln -sfn ${micsNodes.n8n-nodes-caldav}/lib/node_modules/n8n-nodes-caldav/dist \
-      /var/lib/n8n/.n8n/custom/n8n-nodes-caldav
+    ${linkCommands}
   '';
 }
 ```
