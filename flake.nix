@@ -20,6 +20,11 @@
       imports = [
         treefmt-nix.flakeModule
       ];
+
+      flake.nixosModules.default = inputs.nixpkgs.lib.modules.importApply ./nixos-module.nix {
+        inherit (inputs) self;
+      };
+
       systems = [
         "x86_64-linux"
         "aarch64-linux"

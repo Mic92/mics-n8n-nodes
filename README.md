@@ -14,33 +14,41 @@ independently.
 
 ## Installation
 
-### With Nix (recommended)
+### NixOS module (recommended)
 
-Each node is available as a Nix package. Add this flake as an input and
-symlink the built packages into n8n's custom nodes directory:
+Add the flake input and import the NixOS module, then enable the nodes
+you want:
 
 ```nix
 # flake.nix
 inputs.mics-n8n-nodes.url = "github:Mic92/mics-n8n-nodes";
 
-# In your n8n module:
-let
-  micsNodes = mics-n8n-nodes.packages.${pkgs.stdenv.hostPlatform.system};
-  linkCommands = pkgs.lib.concatStringsSep "\n" (
-    pkgs.lib.mapAttrsToList (
-      name: pkg: "ln -sfn ${pkg}/lib/node_modules/${name}/dist /var/lib/n8n/.n8n/custom/${name}"
-    ) micsNodes
-  );
-in {
-  # Symlink all nodes into n8n's custom directory
-  systemd.services.n8n.preStart = ''
-    mkdir -p /var/lib/n8n/.n8n/custom
-    ${linkCommands}
-  '';
+# In your NixOS configuration:
+{
+  imports = [ mics-n8n-nodes.nixosModules.default ];
+
+  services.n8n.enable = true;
+
+  # Enable all nodes at once:
+  # mics-n8n-nodes.enableAll = true;
+
+  # Or pick individual nodes:
+  mics-n8n-nodes.nodes = {
+    n8n-nodes-caldav.enable = true;
+    n8n-nodes-kagi.enable = true;
+    # n8n-nodes-imap.enable = true;
+    # n8n-nodes-nostr.enable = true;
+    # n8n-nodes-opencrow.enable = true;
+    # n8n-nodes-github-notifications.enable = true;
+  };
 }
 ```
 
-Build a single node:
+The module symlinks each enabled node's `dist/` into n8n's custom
+extensions directory (`/var/lib/n8n/.n8n/custom/`) via a systemd
+`preStart` hook.
+
+Build a single node without the module:
 
 ```bash
 nix build github:Mic92/mics-n8n-nodes#n8n-nodes-caldav
