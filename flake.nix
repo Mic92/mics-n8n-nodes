@@ -47,6 +47,13 @@
               # Extra native build inputs needed during the check phase (e.g.
               # radicale + htpasswd for CalDAV integration tests).
               nativeCheckInputs ? [ ],
+              # Jest CLI arguments for the check phase.  Packages with their
+              # own globalSetup (like caldav) need --config pointing at a
+              # standalone jest config because Jest validates globalSetup
+              # paths of ALL projects in the root config — even with
+              # --selectProjects — and sibling packages are absent in the
+              # nix build sandbox.
+              jestArgs ? "--testPathPatterns='packages/${pname}/'",
             }:
             pkgs.buildNpmPackage {
               inherit pname;
@@ -85,7 +92,7 @@
               doCheck = true;
               checkPhase = ''
                 runHook preCheck
-                npx jest --testPathPatterns='packages/${pname}/'
+                npx jest ${jestArgs}
                 runHook postCheck
               '';
 
@@ -128,6 +135,7 @@
             n8n-nodes-caldav = mkN8nNode {
               pname = "n8n-nodes-caldav";
               description = "n8n node for CalDAV integration (Nextcloud, iCloud, Radicale, etc.)";
+              jestArgs = "--config packages/n8n-nodes-caldav/jest.config.js";
               nativeCheckInputs = [
                 pkgs.radicale
                 pkgs.apacheHttpd # htpasswd
