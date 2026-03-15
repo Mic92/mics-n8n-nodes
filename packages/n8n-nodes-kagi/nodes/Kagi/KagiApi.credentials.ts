@@ -3,7 +3,8 @@ import type { ICredentialType, INodeProperties, Icon } from "n8n-workflow";
 export class KagiApi implements ICredentialType {
   name = "kagiApi";
   displayName = "Kagi API";
-  documentationUrl = "https://kagi.com/settings?p=api";
+  documentationUrl =
+    "https://help.kagi.com/kagi/privacy/private-browser-sessions.html";
   icon: Icon = "file:kagi.svg";
   properties: INodeProperties[] = [
     {
@@ -13,8 +14,9 @@ export class KagiApi implements ICredentialType {
       typeOptions: { password: true },
       default: "",
       required: true,
+      placeholder: "aBcDe123xyz.a1b2c3d4e5f6g7h8i9j0kLmNoPqRsTuVwXyZ",
       description:
-        "Kagi session token. Go to Settings → Session Link to generate one.",
+        'The token from your Kagi Session Link. Go to <a href="https://kagi.com/settings?p=user_details">Settings → Account → Session Link</a>, copy the link, and paste just the token value (the part after "?token=").',
     },
   ];
 }

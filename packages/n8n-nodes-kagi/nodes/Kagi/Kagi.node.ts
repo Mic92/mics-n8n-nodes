@@ -1,7 +1,10 @@
 import { NodeConnectionTypes, NodeOperationError } from "n8n-workflow";
 
 import type {
+  ICredentialTestFunctions,
+  ICredentialsDecrypted,
   IExecuteFunctions,
+  INodeCredentialTestResult,
   INodeExecutionData,
   INodeType,
   INodeTypeDescription,
@@ -30,6 +33,7 @@ export class Kagi implements INodeType {
       {
         name: "kagiApi",
         required: true,
+        testedBy: "kagiApiTest",
       },
     ],
     properties: [
@@ -77,6 +81,48 @@ export class Kagi implements INodeType {
         description: "Maximum number of search results to return",
       },
     ],
+  };
+
+  methods = {
+    credentialTest: {
+      async kagiApiTest(
+        this: ICredentialTestFunctions,
+        credential: ICredentialsDecrypted,
+      ): Promise<INodeCredentialTestResult> {
+        const sessionToken = credential.data?.sessionToken as string;
+        if (!sessionToken) {
+          return {
+            status: "Error",
+            message: "Session token is required",
+          };
+        }
+
+        try {
+          const response = (await this.helpers.request({
+            method: "GET",
+            uri: `https://kagi.com/html/search?token=${encodeURIComponent(sessionToken)}`,
+            followRedirect: false,
+            resolveWithFullResponse: true,
+            simple: false,
+          })) as { statusCode: number; headers: Record<string, string> };
+
+          const location = response.headers?.location ?? "";
+          if (location.includes("/signin") || location.includes("/welcome")) {
+            return {
+              status: "Error",
+              message:
+                "Invalid session token. Go to Kagi Settings → Account → Session Link to get a valid token.",
+            };
+          }
+
+          return { status: "OK", message: "Connection successful" };
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          return { status: "Error", message };
+        }
+      },
+    },
   };
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
