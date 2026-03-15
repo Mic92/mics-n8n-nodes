@@ -44,6 +44,9 @@
             {
               pname,
               description,
+              # Extra native build inputs needed during the check phase (e.g.
+              # radicale + htpasswd for CalDAV integration tests).
+              nativeCheckInputs ? [ ],
             }:
             pkgs.buildNpmPackage {
               inherit pname;
@@ -64,7 +67,7 @@
                 ];
               };
 
-              inherit npmDeps;
+              inherit npmDeps nativeCheckInputs;
               npmConfigHook = pkgs.importNpmLock.npmConfigHook;
 
               makeCacheWritable = true;
@@ -111,20 +114,37 @@
                 license = lib.licenses.mit;
               };
             };
-          nodes = {
+          # Simple nodes: description string only.
+          simpleNodes = {
             n8n-nodes-nostr = "n8n node to send encrypted DMs via Nostr using NIP-59 Gift Wrap";
             n8n-nodes-opencrow = "n8n node to send trigger messages to OpenCrow";
             n8n-nodes-imap = "n8n node to interact with IMAP mailboxes";
             n8n-nodes-github-notifications = "n8n node to list GitHub notifications";
             n8n-nodes-kagi = "n8n node for Kagi Search and Quick Answer (AI summary)";
           };
+
+          # Nodes that need extra build/test configuration.
+          extraNodes = {
+            n8n-nodes-caldav = mkN8nNode {
+              pname = "n8n-nodes-caldav";
+              description = "n8n node for CalDAV integration (Nextcloud, iCloud, Radicale, etc.)";
+              nativeCheckInputs = [
+                pkgs.radicale
+                pkgs.apacheHttpd # htpasswd
+              ];
+            };
+          };
         in
         {
-          packages = lib.mapAttrs (pname: description: mkN8nNode { inherit pname description; }) nodes;
+          packages =
+            (lib.mapAttrs (pname: description: mkN8nNode { inherit pname description; }) simpleNodes)
+            // extraNodes;
 
           devShells.default = pkgs.mkShell {
             buildInputs = with pkgs; [
               nodejs
+              radicale
+              apacheHttpd # provides htpasswd for CalDAV tests
             ];
 
             shellHook = ''
