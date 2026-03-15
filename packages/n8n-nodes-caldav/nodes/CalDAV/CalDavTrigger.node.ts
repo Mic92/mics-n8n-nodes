@@ -18,7 +18,7 @@ export class CalDavTrigger implements INodeType {
   description: INodeTypeDescription = {
     displayName: "CalDAV Trigger",
     name: "calDavTrigger",
-    icon: "fa:calendar",
+    icon: "file:caldav.svg",
     group: ["trigger"],
     version: 1,
     description: "Poll CalDAV server for event changes",

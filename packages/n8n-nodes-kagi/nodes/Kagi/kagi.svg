@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" width="60" height="60">
+  <!-- Kagi-inspired magnifying glass with rays -->
+  <circle cx="26" cy="26" r="14" fill="none" stroke="#FFB319" stroke-width="4"/>
+  <line x1="36" y1="36" x2="50" y2="50" stroke="#FFB319" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="26" cy="26" r="8" fill="#FFB319" opacity="0.3"/>
+  <!-- Small sparkle/star to represent AI -->
+  <path d="M48 8l1.5 3 3 1.5-3 1.5L48 17l-1.5-3-3-1.5 3-1.5z" fill="#FFB319"/>
+</svg>

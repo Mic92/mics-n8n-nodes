@@ -27,7 +27,7 @@ export class Imap implements INodeType {
   description: INodeTypeDescription = {
     displayName: "IMAP",
     name: "imap",
-    icon: "fa:envelope",
+    icon: "file:imap.svg",
     group: ["output"],
     version: 1,
     subtitle: '={{$parameter["operation"]}}',

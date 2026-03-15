@@ -234,4 +234,4 @@ This node is built with:
 - [tsdav](https://github.com/natelindev/tsdav) - CalDAV client library
 - [ical.js](https://github.com/kewisch/ical.js) - Calendar event parser
 
-Thanks to all [contributors](https://github.com/Mic92/n8n-nodes-opencrow/graphs/contributors)!
+Thanks to all [contributors](https://github.com/Mic92/mics-n8n-nodes/graphs/contributors)!

@@ -13,7 +13,7 @@ export class Kagi implements INodeType {
   description: INodeTypeDescription = {
     displayName: "Kagi",
     name: "kagi",
-    icon: "fa:search",
+    icon: "file:kagi.svg",
     group: ["output"],
     version: 1,
     subtitle:

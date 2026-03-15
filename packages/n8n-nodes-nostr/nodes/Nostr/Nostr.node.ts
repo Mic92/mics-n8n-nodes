@@ -195,7 +195,7 @@ export class Nostr implements INodeType {
   description: INodeTypeDescription = {
     displayName: "Nostr",
     name: "nostr",
-    icon: "fa:hashtag",
+    icon: "file:nostr.svg",
     group: ["output"],
     version: 1,
     subtitle:

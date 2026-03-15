@@ -16,7 +16,7 @@ export class OpenCrow implements INodeType {
   description: INodeTypeDescription = {
     displayName: "OpenCrow",
     name: "openCrow",
-    icon: "fa:crow",
+    icon: "file:opencrow.svg",
     group: ["output"],
     version: 1,
     subtitle: "Send trigger to OpenCrow",

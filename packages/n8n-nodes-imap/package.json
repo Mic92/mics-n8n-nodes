@@ -15,7 +15,7 @@
     "email": "joerg@thalheim.io"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && find nodes -name '*.svg' -o -name '*.node.json' | while read f; do cp \"$f\" \"dist/$f\"; done",
     "dev": "tsc --watch"
   },
   "files": [
