@@ -1,9 +1,10 @@
-import type { ICredentialType, INodeProperties } from "n8n-workflow";
+import type { ICredentialType, INodeProperties, Icon } from "n8n-workflow";
 
 export class KagiApi implements ICredentialType {
   name = "kagiApi";
   displayName = "Kagi API";
   documentationUrl = "https://kagi.com/settings?p=api";
+  icon: Icon = "file:kagi.svg";
   properties: INodeProperties[] = [
     {
       displayName: "Session Token",
