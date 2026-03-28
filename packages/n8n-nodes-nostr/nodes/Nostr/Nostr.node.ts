@@ -10,7 +10,7 @@ import type {
 import type { NostrEvent } from "nostr-tools";
 
 import { decode } from "nostr-tools/nip19";
-import { wrapEvent } from "nostr-tools/nip59";
+import { wrapManyEvents } from "nostr-tools/nip59";
 import { SimplePool, useWebSocketImplementation } from "nostr-tools/pool";
 import { finalizeEvent, getPublicKey } from "nostr-tools/pure";
 import WebSocket from "ws";
@@ -18,6 +18,9 @@ import WebSocket from "ws";
 // Inject a WebSocket implementation that sets a recognizable User-Agent
 // so relay operators can identify (and rate-limit) us instead of seeing
 // a generic "Node" agent hammering them with connections.
+// Note: this is a process-global side effect that affects every
+// nostr-tools SimplePool in the n8n process. Harmless in practice since
+// we're the only nostr-tools consumer.
 class NostrNodeWebSocket extends WebSocket {
   constructor(address: string, protocols?: string | string[]) {
     super(address, protocols, {
@@ -65,7 +68,9 @@ function parseRecipientPubkey(raw: string): string {
     return decoded.data as string;
   }
   if (/^[0-9a-f]{64}$/i.test(trimmed)) {
-    return trimmed;
+    // Nostr requires lowercase hex; uppercase in a p-tag won't match
+    // the recipient's subscription filter.
+    return trimmed.toLowerCase();
   }
   throw new Error(
     "Recipient public key must be npub1… bech32 or a 64-character hex string",
@@ -96,32 +101,30 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Wrap a message as a NIP-59 gift-wrapped kind-14 DM and publish it.
- * Retries with exponential back-off until at least one relay accepts.
+ * Wrap a message as NIP-59 gift-wrapped kind-14 DM events.
+ * Returns [toUs, toThem] so the sender's own client also sees the
+ * outgoing message in its conversation view (NIP-17).
  */
 function buildGiftWrappedDM(
   senderPrivateKey: Uint8Array,
   recipientPubkey: string,
   message: string,
-): NostrEvent {
-  const wrap = wrapEvent(
+): NostrEvent[] {
+  return wrapManyEvents(
     {
       kind: 14,
       content: message,
       tags: [["p", recipientPubkey]],
-      created_at: Math.round(Date.now() / 1000),
+      created_at: Math.floor(Date.now() / 1000),
     },
     senderPrivateKey,
-    recipientPubkey,
+    [recipientPubkey],
   );
-
-  return wrap;
 }
 
 /**
- * Build a NIP-01 kind 0 metadata event from profile fields, sign it,
- * and publish to the configured relays.
- * Retries with exponential back-off like sendGiftWrappedDM.
+ * Build and sign a NIP-01 kind 0 metadata event from the given
+ * profile fields. Empty fields are omitted from the content JSON.
  */
 function buildProfileEvent(
   senderPrivateKey: Uint8Array,
@@ -149,7 +152,7 @@ function buildProfileEvent(
       kind: 0,
       content: JSON.stringify(meta),
       tags: [],
-      created_at: Math.round(Date.now() / 1000),
+      created_at: Math.floor(Date.now() / 1000),
     },
     senderPrivateKey,
   );
@@ -157,16 +160,40 @@ function buildProfileEvent(
   return event;
 }
 
+/** Extract a readable message from Promise.any's AggregateError. */
+function formatError(err: unknown): string {
+  if (err instanceof AggregateError) {
+    const msgs = err.errors
+      .map((e) => (e instanceof Error ? e.message : String(e)))
+      .filter((m, i, a) => a.indexOf(m) === i); // dedupe
+    return msgs.join("; ");
+  }
+  return err instanceof Error ? err.message : String(err);
+}
+
 /**
  * Publish an event to relays with exponential back-off retry.
  * Resolves once at least one relay accepts.
+ *
+ * The deadRelays set is a poor man's circuit breaker shared across the
+ * whole execute() call: once a relay fails maxRetries+1 times for one
+ * event, subsequent items skip it immediately so a 100-item batch with
+ * continueOnFail doesn't spend hours retrying a dead relay.
  */
 async function publishToRelays(
   pool: SimplePool,
   event: NostrEvent,
   relays: string[],
+  deadRelays: Set<string>,
 ): Promise<void> {
-  let lastError: Error | undefined;
+  const liveRelays = relays.filter((r) => !deadRelays.has(r));
+  if (liveRelays.length === 0) {
+    throw new Error(
+      `All relays marked dead after earlier failures: ${[...deadRelays].join(", ")}`,
+    );
+  }
+
+  let lastError: string | undefined;
 
   for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
     if (attempt > 0) {
@@ -185,7 +212,7 @@ async function publishToRelays(
           retryConfig.publishTimeoutMs,
         );
       });
-      const publishPromises = pool.publish(relays, event).map((p) =>
+      const publishPromises = pool.publish(liveRelays, event).map((p) =>
         Promise.race([p, timeout]).then((result) => {
           if (
             typeof result === "string" &&
@@ -201,14 +228,18 @@ async function publishToRelays(
       await Promise.any(publishPromises);
       return;
     } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
+      lastError = formatError(err);
     } finally {
       if (timeoutHandle) clearTimeout(timeoutHandle);
     }
   }
 
+  // Trip the breaker: none of the live relays accepted after full
+  // retry budget, so don't bother with them for later items.
+  for (const r of liveRelays) deadRelays.add(r);
+
   throw new Error(
-    `Failed to publish to any relay after ${retryConfig.maxRetries + 1} attempts: ${lastError?.message}`,
+    `Failed to publish to any relay after ${retryConfig.maxRetries + 1} attempts: ${lastError}`,
   );
 }
 
@@ -372,6 +403,7 @@ export class Nostr implements INodeType {
     // Reuse a single pool across all items and retries so we don't open
     // a fresh WebSocket per attempt and DDoS the relay.
     const pool = new SimplePool();
+    const deadRelays = new Set<string>();
 
     try {
       for (let i = 0; i < items.length; i++) {
@@ -401,7 +433,7 @@ export class Nostr implements INodeType {
             }
 
             const event = buildProfileEvent(senderPrivateKey, profile);
-            await publishToRelays(pool, event, relays);
+            await publishToRelays(pool, event, relays, deadRelays);
 
             returnData.push(
               ...this.helpers.constructExecutionMetaData(
@@ -432,12 +464,20 @@ export class Nostr implements INodeType {
 
             const recipientPubkey = parseRecipientPubkey(recipientRaw);
 
-            const wrap = buildGiftWrappedDM(
+            const [toUs, toThem] = buildGiftWrappedDM(
               senderPrivateKey,
               recipientPubkey,
               message,
             );
-            await publishToRelays(pool, wrap, relays);
+            // Recipient's copy is the one that matters; publish it first.
+            await publishToRelays(pool, toThem, relays, deadRelays);
+            // Self-copy is best-effort so our own client shows the sent
+            // message. Don't fail the whole item if this one doesn't land.
+            try {
+              await publishToRelays(pool, toUs, relays, deadRelays);
+            } catch {
+              // already delivered to recipient; ignore
+            }
 
             returnData.push(
               ...this.helpers.constructExecutionMetaData(
@@ -445,7 +485,7 @@ export class Nostr implements INodeType {
                   success: true,
                   senderPubkey,
                   recipientPubkey,
-                  eventId: wrap.id,
+                  eventId: toThem.id,
                   relays,
                 }),
                 { itemData: { item: i } },

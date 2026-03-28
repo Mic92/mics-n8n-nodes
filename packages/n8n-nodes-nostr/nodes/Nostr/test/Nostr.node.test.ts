@@ -82,15 +82,43 @@ describe("Nostr node – Message resource", () => {
     });
     expect(result.json).toHaveProperty("eventId");
 
-    // Relay received exactly one kind-1059 event
-    expect(receivedEvents).toHaveLength(1);
-    expect(receivedEvents[0].kind).toBe(1059);
+    // Relay received two kind-1059 events: recipient's copy + self-copy
+    expect(receivedEvents).toHaveLength(2);
+    expect(receivedEvents.every((e) => e.kind === 1059)).toBe(true);
 
-    // Recipient can unwrap and read the plaintext
-    const rumor = unwrapEvent(receivedEvents[0], RECIPIENT_KEY);
+    // First published = recipient's copy (toThem)
+    const toThem = receivedEvents[0];
+    const rumor = unwrapEvent(toThem, RECIPIENT_KEY);
     expect(rumor.kind).toBe(14);
     expect(rumor.content).toBe("Are you going to the party tonight?");
     expect(rumor.pubkey).toBe(SENDER_PUBKEY);
+
+    // Second = self-copy (toUs), unwrappable by sender
+    const toUs = receivedEvents[1];
+    const selfRumor = unwrapEvent(toUs, SENDER_KEY);
+    expect(selfRumor.content).toBe("Are you going to the party tonight?");
+  });
+
+  it("normalizes uppercase hex recipient keys to lowercase", async () => {
+    const node = new Nostr();
+    const ctx = createMockExecuteFunctions(
+      {
+        resource: "message",
+        message: "UPPER",
+        recipientPubkey: RECIPIENT_PUBKEY.toUpperCase(),
+      },
+      { nostrApi: { privateKey: SENDER_HEX, relays: RELAY_URL } },
+    );
+
+    const [[result]] = await node.execute.call(ctx);
+    expect(result.json).toMatchObject({
+      success: true,
+      recipientPubkey: RECIPIENT_PUBKEY, // lowercase
+    });
+
+    // p-tag in the wrap is lowercase so the recipient's filter matches
+    const pTag = receivedEvents[0].tags.find((t) => t[0] === "p");
+    expect(pTag?.[1]).toBe(RECIPIENT_PUBKEY);
   });
 
   it("accepts npub-encoded recipient keys", async () => {
@@ -112,6 +140,7 @@ describe("Nostr node – Message resource", () => {
     const [[result]] = await node.execute.call(ctx);
     expect(result.json).toMatchObject({ success: true });
 
+    expect(receivedEvents).toHaveLength(2);
     const rumor = unwrapEvent(receivedEvents[0], RECIPIENT_KEY);
     expect(rumor.content).toBe("hello npub");
   });
@@ -147,10 +176,53 @@ describe("Nostr node – Message resource", () => {
       const [[result]] = await node.execute.call(ctx);
 
       expect(result.json).toMatchObject({ success: true });
-      expect(receivedEvents).toHaveLength(1);
+      expect(receivedEvents).toHaveLength(2);
 
       const rumor = unwrapEvent(receivedEvents[0], RECIPIENT_KEY);
       expect(rumor.content).toBe("retry me");
+    } finally {
+      Object.assign(retryConfig, saved);
+    }
+  });
+
+  it("trips breaker so later items skip dead relay", async () => {
+    const saved = { ...retryConfig };
+    retryConfig.maxRetries = 1;
+    retryConfig.baseDelayMs = 1;
+    retryConfig.publishTimeoutMs = 50;
+
+    try {
+      server.close(); // relay dead for the whole test
+
+      const node = new Nostr();
+      const ctx = createMockExecuteFunctions(
+        {
+          resource: "message",
+          message: "msg",
+          recipientPubkey: RECIPIENT_PUBKEY,
+        },
+        { nostrApi: { privateKey: SENDER_HEX, relays: RELAY_URL } },
+        {
+          continueOnFail: true,
+          inputItems: [{ json: {} }, { json: {} }, { json: {} }],
+        },
+      );
+
+      const start = Date.now();
+      const [results] = await node.execute.call(ctx);
+      const elapsed = Date.now() - start;
+
+      expect(results).toHaveLength(3);
+      // First item exhausts the retry budget
+      expect(results[0].json.error).toMatch(/Failed to publish/);
+      // Remaining items short-circuit via the breaker
+      expect(results[1].json.error).toMatch(/All relays marked dead/);
+      expect(results[2].json.error).toMatch(/All relays marked dead/);
+
+      // 3 items should not take 3× the retry budget. First item:
+      // 2 attempts × 50ms timeout + 1ms backoff ≈ 100ms. Items 2+3
+      // must be near-instant. Allow generous slack for CI jitter.
+      expect(elapsed).toBeLessThan(500);
     } finally {
       Object.assign(retryConfig, saved);
     }
