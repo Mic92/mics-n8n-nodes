@@ -9,10 +9,24 @@ import { npubEncode } from "nostr-tools/nip19";
 import type { NostrEvent } from "nostr-tools";
 
 import { createMockExecuteFunctions } from "../../../../../test/helpers";
-import { Nostr, retryConfig } from "../Nostr.node";
+import { Nostr, retryConfig, withUserAgent, USER_AGENT } from "../Nostr.node";
 
-// Route SimplePool through mock-socket so we never hit the network
-useWebSocketImplementation(MockWebSocket);
+// Record options passed to the WebSocket constructor so tests can verify
+// that withUserAgent() actually injects the header. mock-socket ignores
+// the third argument, so we have to capture it ourselves.
+const wsOptionsSeen: Array<{ headers?: Record<string, string> }> = [];
+
+class RecordingMockWebSocket extends MockWebSocket {
+  constructor(url: string, protocols?: string | string[], opts?: object) {
+    wsOptionsSeen.push((opts as { headers?: Record<string, string> }) ?? {});
+    super(url, protocols);
+  }
+}
+
+// Route SimplePool through mock-socket wrapped in the same User-Agent
+// shim production uses, so we never hit the network *and* we exercise
+// the wrapper.
+useWebSocketImplementation(withUserAgent(RecordingMockWebSocket));
 
 const SENDER_KEY = generateSecretKey();
 const SENDER_PUBKEY = getPublicKey(SENDER_KEY);
@@ -49,11 +63,31 @@ describe("Nostr node – Message resource", () => {
 
   beforeEach(() => {
     receivedEvents = [];
+    wsOptionsSeen.length = 0;
     server = setupMockRelay(RELAY_URL, receivedEvents);
   });
 
   afterEach(() => {
     server.close();
+  });
+
+  it("sets the User-Agent header on relay connections", async () => {
+    const node = new Nostr();
+    const ctx = createMockExecuteFunctions(
+      {
+        resource: "message",
+        message: "ua test",
+        recipientPubkey: RECIPIENT_PUBKEY,
+      },
+      { nostrApi: { privateKey: SENDER_HEX, relays: RELAY_URL } },
+    );
+
+    await node.execute.call(ctx);
+
+    expect(wsOptionsSeen.length).toBeGreaterThan(0);
+    for (const opts of wsOptionsSeen) {
+      expect(opts.headers?.["User-Agent"]).toBe(USER_AGENT);
+    }
   });
 
   it("sends a gift-wrapped DM that the recipient can decrypt", async () => {

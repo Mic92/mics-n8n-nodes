@@ -21,19 +21,28 @@ import WebSocket from "ws";
 // Note: this is a process-global side effect that affects every
 // nostr-tools SimplePool in the n8n process. Harmless in practice since
 // we're the only nostr-tools consumer.
-class NostrNodeWebSocket extends WebSocket {
-  constructor(address: string, protocols?: string | string[]) {
-    super(address, protocols, {
-      headers: {
-        "User-Agent":
-          "n8n-nodes-nostr (+https://github.com/Mic92/mics-n8n-nodes)",
-      },
-    });
-  }
+export const USER_AGENT =
+  "n8n-nodes-nostr (+https://github.com/Mic92/mics-n8n-nodes)";
+
+/**
+ * Wrap a WebSocket constructor so every connection carries our
+ * User-Agent header. Exported for tests; production uses the `ws`
+ * package, tests wrap mock-socket.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- ws and
+// mock-socket have incompatible constructor overloads; the wrapper only
+// needs "something newable that takes (url, protocols, opts)".
+export function withUserAgent(Base: any): typeof globalThis.WebSocket {
+  return class extends Base {
+    constructor(address: string, protocols?: string | string[]) {
+      super(address, protocols, {
+        headers: { "User-Agent": USER_AGENT },
+      });
+    }
+  } as unknown as typeof globalThis.WebSocket;
 }
-useWebSocketImplementation(
-  NostrNodeWebSocket as unknown as typeof globalThis.WebSocket,
-);
+
+useWebSocketImplementation(withUserAgent(WebSocket));
 
 /**
  * Parse a private key supplied as nsec1… bech32 or raw 64-char hex.
