@@ -11,8 +11,26 @@ import type { NostrEvent } from "nostr-tools";
 
 import { decode } from "nostr-tools/nip19";
 import { wrapEvent } from "nostr-tools/nip59";
-import { SimplePool } from "nostr-tools/pool";
+import { SimplePool, useWebSocketImplementation } from "nostr-tools/pool";
 import { finalizeEvent, getPublicKey } from "nostr-tools/pure";
+import WebSocket from "ws";
+
+// Inject a WebSocket implementation that sets a recognizable User-Agent
+// so relay operators can identify (and rate-limit) us instead of seeing
+// a generic "Node" agent hammering them with connections.
+class NostrNodeWebSocket extends WebSocket {
+  constructor(address: string, protocols?: string | string[]) {
+    super(address, protocols, {
+      headers: {
+        "User-Agent":
+          "n8n-nodes-nostr (+https://github.com/Mic92/mics-n8n-nodes)",
+      },
+    });
+  }
+}
+useWebSocketImplementation(
+  NostrNodeWebSocket as unknown as typeof globalThis.WebSocket,
+);
 
 /**
  * Parse a private key supplied as nsec1… bech32 or raw 64-char hex.
@@ -66,9 +84,11 @@ function parseRelays(raw: string): string[] {
 
 /** Exported so tests can override with small values. */
 export const retryConfig = {
-  maxRetries: 20,
+  maxRetries: 8,
   baseDelayMs: 1000,
   maxDelayMs: 30000,
+  /** Per-attempt publish timeout so a slow relay doesn't hang forever. */
+  publishTimeoutMs: 15000,
 };
 
 function sleep(ms: number): Promise<void> {
@@ -79,12 +99,11 @@ function sleep(ms: number): Promise<void> {
  * Wrap a message as a NIP-59 gift-wrapped kind-14 DM and publish it.
  * Retries with exponential back-off until at least one relay accepts.
  */
-async function sendGiftWrappedDM(
+function buildGiftWrappedDM(
   senderPrivateKey: Uint8Array,
   recipientPubkey: string,
   message: string,
-  relays: string[],
-): Promise<NostrEvent> {
+): NostrEvent {
   const wrap = wrapEvent(
     {
       kind: 14,
@@ -96,8 +115,6 @@ async function sendGiftWrappedDM(
     recipientPubkey,
   );
 
-  await publishToRelays(wrap, relays);
-
   return wrap;
 }
 
@@ -106,7 +123,7 @@ async function sendGiftWrappedDM(
  * and publish to the configured relays.
  * Retries with exponential back-off like sendGiftWrappedDM.
  */
-async function publishProfile(
+function buildProfileEvent(
   senderPrivateKey: Uint8Array,
   profile: {
     name: string;
@@ -114,8 +131,7 @@ async function publishProfile(
     about: string;
     picture: string;
   },
-  relays: string[],
-): Promise<NostrEvent> {
+): NostrEvent {
   const fieldMap: Record<string, string> = {
     name: "name",
     displayName: "display_name",
@@ -138,8 +154,6 @@ async function publishProfile(
     senderPrivateKey,
   );
 
-  await publishToRelays(event, relays);
-
   return event;
 }
 
@@ -148,6 +162,7 @@ async function publishProfile(
  * Resolves once at least one relay accepts.
  */
 async function publishToRelays(
+  pool: SimplePool,
   event: NostrEvent,
   relays: string[],
 ): Promise<void> {
@@ -162,10 +177,16 @@ async function publishToRelays(
       await sleep(delay);
     }
 
-    const pool = new SimplePool();
+    let timeoutHandle: NodeJS.Timeout | undefined;
     try {
+      const timeout = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(
+          () => reject(new Error("publish timeout")),
+          retryConfig.publishTimeoutMs,
+        );
+      });
       const publishPromises = pool.publish(relays, event).map((p) =>
-        p.then((result) => {
+        Promise.race([p, timeout]).then((result) => {
           if (
             typeof result === "string" &&
             (result.startsWith("connection failure:") ||
@@ -182,7 +203,7 @@ async function publishToRelays(
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
     } finally {
-      pool.close(relays);
+      if (timeoutHandle) clearTimeout(timeoutHandle);
     }
   }
 
@@ -348,97 +369,106 @@ export class Nostr implements INodeType {
 
     const resource = this.getNodeParameter("resource", 0) as string;
 
-    for (let i = 0; i < items.length; i++) {
-      try {
-        if (resource === "profile") {
-          const profile = {
-            name: this.getNodeParameter("profileName", i) as string,
-            displayName: this.getNodeParameter(
-              "profileDisplayName",
+    // Reuse a single pool across all items and retries so we don't open
+    // a fresh WebSocket per attempt and DDoS the relay.
+    const pool = new SimplePool();
+
+    try {
+      for (let i = 0; i < items.length; i++) {
+        try {
+          if (resource === "profile") {
+            const profile = {
+              name: this.getNodeParameter("profileName", i) as string,
+              displayName: this.getNodeParameter(
+                "profileDisplayName",
+                i,
+              ) as string,
+              about: this.getNodeParameter("profileAbout", i) as string,
+              picture: this.getNodeParameter("profilePicture", i) as string,
+            };
+
+            if (
+              !profile.name &&
+              !profile.displayName &&
+              !profile.about &&
+              !profile.picture
+            ) {
+              throw new NodeOperationError(
+                this.getNode(),
+                "At least one profile field must be set",
+                { itemIndex: i },
+              );
+            }
+
+            const event = buildProfileEvent(senderPrivateKey, profile);
+            await publishToRelays(pool, event, relays);
+
+            returnData.push(
+              ...this.helpers.constructExecutionMetaData(
+                this.helpers.returnJsonArray({
+                  success: true,
+                  pubkey: senderPubkey,
+                  eventId: event.id,
+                  profile,
+                  relays,
+                }),
+                { itemData: { item: i } },
+              ),
+            );
+          } else {
+            const message = this.getNodeParameter("message", i) as string;
+            const recipientRaw = this.getNodeParameter(
+              "recipientPubkey",
               i,
-            ) as string,
-            about: this.getNodeParameter("profileAbout", i) as string,
-            picture: this.getNodeParameter("profilePicture", i) as string,
-          };
+            ) as string;
 
-          if (
-            !profile.name &&
-            !profile.displayName &&
-            !profile.about &&
-            !profile.picture
-          ) {
-            throw new NodeOperationError(
-              this.getNode(),
-              "At least one profile field must be set",
-              { itemIndex: i },
+            if (!message.trim()) {
+              throw new NodeOperationError(
+                this.getNode(),
+                "Message cannot be empty",
+                { itemIndex: i },
+              );
+            }
+
+            const recipientPubkey = parseRecipientPubkey(recipientRaw);
+
+            const wrap = buildGiftWrappedDM(
+              senderPrivateKey,
+              recipientPubkey,
+              message,
+            );
+            await publishToRelays(pool, wrap, relays);
+
+            returnData.push(
+              ...this.helpers.constructExecutionMetaData(
+                this.helpers.returnJsonArray({
+                  success: true,
+                  senderPubkey,
+                  recipientPubkey,
+                  eventId: wrap.id,
+                  relays,
+                }),
+                { itemData: { item: i } },
+              ),
             );
           }
-
-          const event = await publishProfile(senderPrivateKey, profile, relays);
-
-          returnData.push(
-            ...this.helpers.constructExecutionMetaData(
-              this.helpers.returnJsonArray({
-                success: true,
-                pubkey: senderPubkey,
-                eventId: event.id,
-                profile,
-                relays,
-              }),
-              { itemData: { item: i } },
-            ),
-          );
-        } else {
-          const message = this.getNodeParameter("message", i) as string;
-          const recipientRaw = this.getNodeParameter(
-            "recipientPubkey",
-            i,
-          ) as string;
-
-          if (!message.trim()) {
-            throw new NodeOperationError(
-              this.getNode(),
-              "Message cannot be empty",
-              { itemIndex: i },
+        } catch (error) {
+          if (this.continueOnFail()) {
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            returnData.push(
+              ...this.helpers.constructExecutionMetaData(
+                this.helpers.returnJsonArray({ error: errorMessage }),
+                { itemData: { item: i } },
+              ),
             );
+            continue;
           }
-
-          const recipientPubkey = parseRecipientPubkey(recipientRaw);
-
-          const wrap = await sendGiftWrappedDM(
-            senderPrivateKey,
-            recipientPubkey,
-            message,
-            relays,
-          );
-
-          returnData.push(
-            ...this.helpers.constructExecutionMetaData(
-              this.helpers.returnJsonArray({
-                success: true,
-                senderPubkey,
-                recipientPubkey,
-                eventId: wrap.id,
-                relays,
-              }),
-              { itemData: { item: i } },
-            ),
-          );
+          throw error;
         }
-      } catch (error) {
-        if (this.continueOnFail()) {
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          returnData.push(
-            ...this.helpers.constructExecutionMetaData(
-              this.helpers.returnJsonArray({ error: errorMessage }),
-              { itemData: { item: i } },
-            ),
-          );
-          continue;
-        }
-        throw error;
       }
+    } finally {
+      pool.close(relays);
     }
 
     return [returnData];

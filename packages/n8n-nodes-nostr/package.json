@@ -33,7 +33,11 @@
     ]
   },
   "dependencies": {
-    "nostr-tools": "^2.23.3"
+    "nostr-tools": "^2.23.3",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.12"
   },
   "peerDependencies": {
     "n8n-workflow": "*"
