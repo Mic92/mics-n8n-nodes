@@ -33,6 +33,6 @@
     "n8n-workflow": "^2.13.1",
     "prettier": "^3.8.2",
     "ts-jest": "^29.4.9",
-    "typescript": "^5.6.0"
+    "typescript": "^6.0.2"
   }
 }
