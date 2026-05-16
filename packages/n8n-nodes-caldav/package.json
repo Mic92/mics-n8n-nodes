@@ -38,6 +38,6 @@
   },
   "dependencies": {
     "ical.js": "^2.0.1",
-    "tsdav": "^2.2.1"
+    "tsdav": "^2.2.2"
   }
 }
