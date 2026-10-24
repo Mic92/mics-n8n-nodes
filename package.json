@@ -27,7 +27,7 @@
     "@types/node": "^25.9.3",
     "eslint": "^10.5.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-n8n-nodes-base": "^1.16.7",
+    "eslint-plugin-n8n-nodes-base": "^2.0.0",
     "jest": "^30.4.2",
     "mock-socket": "^9.3.1",
     "n8n-workflow": "^2.16.0",
