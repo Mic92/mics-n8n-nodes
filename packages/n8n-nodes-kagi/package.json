@@ -35,6 +35,6 @@
     "n8n-workflow": "*"
   },
   "dependencies": {
-    "node-html-parser": "^7.1.0"
+    "node-html-parser": "^9.0.5"
   }
 }
